@@ -2,8 +2,8 @@ paths:
   log_dir: logs/data
   output_root: outputs/data
 
-  hest_download_dir: /root/workspace/hest_data/hest1k_IDC
-  bench_download_dir: /root/workspace/hest_data/eval/bench_data
+  hest_download_dir: /root/workspace/datasets/hest_data/hest1k_IDC
+  bench_download_dir: /root/workspace/datasets/hest_data/eval/bench_data
 
 huggingface:
   token_env_key: HF_TOKEN
