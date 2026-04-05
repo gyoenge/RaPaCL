@@ -81,15 +81,32 @@ def load_sample_radiomics_parquet(
         if col not in ignore_columns
         and not col.startswith(ignore_prefixes)
     ]   
-    # 2) 숫자형 컬럼만 feature로 사용
-    numeric_cols = df[candidate_cols].select_dtypes(include=["number"]).columns.tolist()
-    feature_columns = numeric_cols
 
+    # 기존: numeric 전체 선택
+    # 2) 숫자형 컬럼만 feature로 사용
+    # numeric_cols = df[candidate_cols].select_dtypes(include=["number"]).columns.tolist()
+    # feature_columns = numeric_cols
+    # if not feature_columns:
+    #     raise ValueError(
+    #         f"No numeric feature columns found in parquet: {parquet_path}. "
+    #         f"candidate_cols={candidate_cols[:20]}"
+    #     )
+
+    # 수정: radiomics prefix만 선택 
+    valid_prefixes = (
+        "original_",
+        "squareroot_",
+        "logarithm_",
+        "wavelet-",
+        "exponential_",
+        "square_",
+    )
+    feature_columns = [
+        col for col in df.columns
+        if col.startswith(valid_prefixes)
+    ]
     if not feature_columns:
-        raise ValueError(
-            f"No numeric feature columns found in parquet: {parquet_path}. "
-            f"candidate_cols={candidate_cols[:20]}"
-        )
+        raise ValueError(f"No valid radiomics features found in {parquet_path}")
 
     # 디버깅용
     ignored_by_name = [col for col in df.columns if col in ignore_columns]
@@ -97,7 +114,7 @@ def load_sample_radiomics_parquet(
         col for col in df.columns
         if col not in ignore_columns and col.startswith(ignore_prefixes)
     ]
-    non_numeric_cols = [col for col in candidate_cols if col not in numeric_cols]
+    # non_numeric_cols = [col for col in candidate_cols if col not in numeric_cols]
 
     if logger is not None and log_cfg["enabled"]:
         if ignored_by_name and log_cfg["log_ignored_by_name"]:
