@@ -131,12 +131,17 @@ def load_sample_radiomics_parquet(
                 ignored_by_prefix[:max_items],
             )
 
-        if non_numeric_cols and log_cfg["log_non_numeric_columns"]:
-            logger.warning(
-                "[RadiomicsParquet] non-numeric columns excluded in %s: %s",
-                parquet_path,
-                non_numeric_cols[:max_items],
-            )
+        # if non_numeric_cols and log_cfg["log_non_numeric_columns"]:
+        #     logger.warning(
+        #         "[RadiomicsParquet] non-numeric columns excluded in %s: %s",
+        #         parquet_path,
+        #         non_numeric_cols[:max_items],
+        #     )
+
+        logger.info(
+            "[RadiomicsParquet] filtered radiomics features: %d",
+            len(feature_columns),
+        )
 
     ### 
 
