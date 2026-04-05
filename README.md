@@ -1,5 +1,5 @@
 # RaPaCL
-Radiomcis-Pathomics Contrastive Learning. 
+Radiomics-Pathomics Contrastive Learning. 
 
 ---
 
