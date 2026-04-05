@@ -5,6 +5,7 @@ import os
 
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from torch.utils.data import Subset
 
 from .cache import load_samplewise_radiomics_targets
 from .dataset import RadiomicsTargetDataset, STNetDataset
@@ -58,10 +59,22 @@ def build_radiomics_dataloaders(
 
     radiomics_parquet_dir = cfg["data"]["radiomics_parquet_dir"]
     radiomics_key_column = cfg.get("data", {}).get("radiomics_key_column", "barcode")
+    
     radiomics_ignore_columns = cfg.get("data", {}).get(
         "radiomics_ignore_columns",
         ["sample_id", "patch_idx", "patch_id", "barcode", "status"],
     )
+
+    radiomics_ignore_prefixes = cfg.get("data", {}).get(
+        "radiomics_ignore_prefixes",
+        [],
+    )
+    
+    apply_train_split_scaling = bool(
+        cfg.get("data", {}).get("radiomics_apply_train_split_scaling", False)
+    )
+
+    ### 
 
     train_transform, eval_transform = build_transforms()
     train_csv, test_csv = build_fold_csv_paths(bench_data_root, outer_fold)
@@ -81,33 +94,153 @@ def build_radiomics_dataloaders(
         normalize_expression=normalize_expression,
     )
 
-    train_rad_targets, feature_names = load_samplewise_radiomics_targets(
+    train_rad_targets, feature_names, train_valid_indices = load_samplewise_radiomics_targets(
         base_dataset=train_base_dataset,
         radiomics_parquet_dir=radiomics_parquet_dir,
         logger=logger,
         key_column=radiomics_key_column,
         ignore_columns=radiomics_ignore_columns,
+        ignore_prefixes=radiomics_ignore_prefixes,
+        cfg=cfg,
     )
-    test_rad_targets, _ = load_samplewise_radiomics_targets(
+
+    test_rad_targets, _, test_valid_indices = load_samplewise_radiomics_targets(
         base_dataset=test_base_dataset,
         radiomics_parquet_dir=radiomics_parquet_dir,
         logger=logger,
         key_column=radiomics_key_column,
         ignore_columns=radiomics_ignore_columns,
+        ignore_prefixes=radiomics_ignore_prefixes,
+        cfg=cfg,
     )
 
-    apply_train_split_scaling = bool(
-        cfg.get("data", {}).get("radiomics_apply_train_split_scaling", False)
+    ## debug
+
+    logger.info(
+        "[RadiomicsStats][train] shape=%s mean=%.4f std=%.4f min=%.4f max=%.4f",
+        tuple(train_rad_targets.shape),
+        train_rad_targets.mean().item(),
+        train_rad_targets.std().item(),
+        train_rad_targets.min().item(),
+        train_rad_targets.max().item(),
     )
 
+    logger.info(
+        "[RadiomicsStats][test] shape=%s mean=%.4f std=%.4f min=%.4f max=%.4f",
+        tuple(test_rad_targets.shape),
+        test_rad_targets.mean().item(),
+        train_rad_targets.std().item(),
+        test_rad_targets.min().item(),
+        test_rad_targets.max().item(),
+    )
+
+    feature_mean = train_rad_targets.mean(dim=0)
+    feature_std = train_rad_targets.std(dim=0)
+
+    logger.info(
+        "[RadiomicsStats][train-featurewise] mean(abs_mean)=%.4f mean(std)=%.4f min(std)=%.4f max(std)=%.4f",
+        feature_mean.abs().mean().item(),
+        feature_std.mean().item(),
+        feature_std.min().item(),
+        feature_std.max().item(),
+    )
+
+    ########
+
+    train_base_dataset = Subset(train_base_dataset, train_valid_indices)
+    test_base_dataset = Subset(test_base_dataset, test_valid_indices)
+
+    ################################################################################ 
+
+    # -----------------------------
+    # 1) train 기준 상수 feature 제거
+    # -----------------------------
+    raw_train_std = train_rad_targets.std(dim=0)
+    valid_feature_mask = raw_train_std > 1e-6
+
+    num_total_features = int(valid_feature_mask.numel())
+    num_kept_features = int(valid_feature_mask.sum().item())
+    num_removed_features = num_total_features - num_kept_features
+
+    if num_removed_features > 0:
+        removed_feature_names = [
+            feature_names[i]
+            for i, keep in enumerate(valid_feature_mask.tolist())
+            if not keep
+        ]
+
+        logger.info(
+            "[RadiomicsStats] removed %d constant/near-constant features (kept %d / %d)",
+            num_removed_features,
+            num_kept_features,
+            num_total_features,
+        )
+        logger.info(
+            "[RadiomicsStats] first removed features: %s",
+            removed_feature_names[:10],
+        )
+    else:
+        logger.info(
+            "[RadiomicsStats] no constant features removed (kept %d / %d)",
+            num_kept_features,
+            num_total_features,
+        )
+
+    train_rad_targets = train_rad_targets[:, valid_feature_mask]
+    test_rad_targets = test_rad_targets[:, valid_feature_mask]
+    feature_names = [
+        feature_names[i]
+        for i, keep in enumerate(valid_feature_mask.tolist())
+        if keep
+    ]
+
+    # -----------------------------
+    # 2) train 기준 scaling
+    # -----------------------------
     if apply_train_split_scaling:
-        logger.info("[Radiomics] Applying train-split normalization")
-
         train_mean = train_rad_targets.mean(dim=0, keepdim=True)
         train_std = train_rad_targets.std(dim=0, keepdim=True).clamp_min(1e-6)
 
         train_rad_targets = (train_rad_targets - train_mean) / train_std
         test_rad_targets = (test_rad_targets - train_mean) / train_std
+
+        logger.info("[RadiomicsStats] applied train-split z-score scaling")
+    else:
+        logger.info("[RadiomicsStats] skipped train-split z-score scaling")
+
+    # -----------------------------
+    # 3) 최종 통계 로그
+    # -----------------------------
+    logger.info(
+        "[RadiomicsStats][train] shape=%s mean=%.4f std=%.4f min=%.4f max=%.4f",
+        tuple(train_rad_targets.shape),
+        train_rad_targets.mean().item(),
+        train_rad_targets.std().item(),
+        train_rad_targets.min().item(),
+        train_rad_targets.max().item(),
+    )
+    logger.info(
+        "[RadiomicsStats][test] shape=%s mean=%.4f std=%.4f min=%.4f max=%.4f",
+        tuple(test_rad_targets.shape),
+        test_rad_targets.mean().item(),
+        test_rad_targets.std().item(),
+        test_rad_targets.min().item(),
+        test_rad_targets.max().item(),
+    )
+
+    feature_mean = train_rad_targets.mean(dim=0)
+    feature_std = train_rad_targets.std(dim=0)
+
+    logger.info(
+        "[RadiomicsStats][train-featurewise] mean(abs_mean)=%.4f mean(std)=%.4f min(std)=%.4f max(std)=%.4f",
+        feature_mean.abs().mean().item(),
+        feature_std.mean().item(),
+        feature_std.min().item(),
+        feature_std.max().item(),
+    )
+
+
+    ################################################################################
 
     radiomics_dim = int(train_rad_targets.shape[1])
 

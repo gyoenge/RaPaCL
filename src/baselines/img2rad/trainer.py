@@ -84,7 +84,12 @@ def train_one_fold(
 
     for epoch in range(1, num_epochs_img2rad + 1):
         train_loss = train_epoch(
-            img2rad_model, train_loader_rad, optimizer_rad, criterion_rad, device
+            img2rad_model,
+            train_loader_rad,
+            optimizer_rad,
+            criterion_rad,
+            device,
+            logger=logger,
         )
         val_loss = evaluate_loss(img2rad_model, val_loader_rad, criterion_rad, device)
 
@@ -141,7 +146,12 @@ def train_one_fold(
 
     for epoch in range(1, num_epochs_gene + 1):
         train_loss = train_epoch(
-            fusion_gene_model, train_loader_gene, optimizer_gene, criterion_gene, device
+            fusion_gene_model, 
+            train_loader_gene, 
+            optimizer_gene, 
+            criterion_gene, 
+            device, 
+            logger=logger,
         )
         val_loss = evaluate_loss(
             fusion_gene_model, val_loader_gene, criterion_gene, device

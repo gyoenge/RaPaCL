@@ -37,11 +37,29 @@ data:
   normalize_gene_expression: true
   radiomics_parquet_dir: /root/workspace/datasets/hest_data/eval/bench_data/IDC/radiomics_normpersample
   radiomics_key_column: barcode
+  radiomics_apply_train_split_scaling: true  # train 기준 normalization 적용 여부 
+    # train 기준 상수 feature 제거 & train 기준 z-score scaling 
+  
   radiomics_ignore_columns:
     - sample_id
     - patch_idx
     - patch_id
     - barcode
     - status
-  radiomics_apply_train_split_scaling: false  # train 기준 normalization 적용 여부 
+    - color_path
+    - gray_path
+    - mask_path
+
+  radiomics_ignore_prefixes:
+    - diagnostics_
+  
+  radiomics_logging:
+    enabled: true
+    log_ignored_by_name: false
+    log_ignored_by_prefix: false
+    log_non_numeric_columns: false
+    log_nan_skips: false
+    log_loaded_sample_summary: true
+    log_final_summary: true
+    max_logged_items: 10  # 20 
 
