@@ -82,5 +82,13 @@ python -m src.baselines.img2rad.main \
   --mode eval
 ```
 
+(iii) inspect parquet 
+```bash
+python -m src.baselines.img2rad.inspect \
+  --config configs/img2rad.yaml \
+  --mode parquet \
+  --show_columns
+```
+
 ---
 
