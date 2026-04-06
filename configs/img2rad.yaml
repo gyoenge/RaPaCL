@@ -63,3 +63,11 @@ data:
     log_final_summary: true
     max_logged_items: 10  # 20 
 
+  radiomics_valid_prefixes:
+    - original_
+    - squareroot_
+    - logarithm_
+    - wavelet-
+    - exponential_
+    - square_
+    - log-sigma-

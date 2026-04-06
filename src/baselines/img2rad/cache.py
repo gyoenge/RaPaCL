@@ -93,15 +93,29 @@ def load_sample_radiomics_parquet(
     #     )
 
     # 수정: radiomics prefix만 선택 
-    valid_prefixes = (
-        "original_",
-        "squareroot_",
-        "logarithm_",
-        "wavelet-",
-        "exponential_",
-        "square_",
-        "log-sigma-",
+    # valid_prefixes = (
+    #     "original_",
+    #     "squareroot_",
+    #     "logarithm_",
+    #     "wavelet-",
+    #     "exponential_",
+    #     "square_",
+    #     "log-sigma-",
+    # )
+
+    data_cfg = (cfg or {}).get("data", {})
+    valid_prefixes = tuple(
+        data_cfg.get(
+            "radiomics_valid_prefixes",
+            ["original_"],  
+        )
     )
+    if logger is not None and log_cfg["enabled"]:
+        logger.info(
+            "[RadiomicsParquet] using valid_prefixes: %s",
+            valid_prefixes,
+        )
+
     feature_columns = [
         col for col in df.columns
         if col.startswith(valid_prefixes)
