@@ -2,21 +2,25 @@ paths:
   log_dir: logs/data
   output_root: outputs/data
 
-  hest_download_dir: /root/workspace/datasets/hest_data/hest1k_IDC
-  bench_download_dir: /root/workspace/datasets/hest_data/eval/bench_data
+  # hest_download_dir: /root/workspace/datasets/hest_data/hest1k_IDC
+  # bench_download_dir: /root/workspace/datasets/hest_data/eval/bench_data
+  bench_download_dir: /root/workspace/datasets/hest_data/bench_h5
 
 huggingface:
   token_env_key: HF_TOKEN
 
 download:
-  mode: both   # hest | bench | both
+  mode: bench   # hest | bench | both
 
   metadata_uri: hf://datasets/MahmoodLab/hest/HEST_v1_3_0.csv
 
   exclude_tech:
     - Spatial Transcriptomics
     - Visium HD
-    - Visium
+    # - Visium
 
   bench_allow_patterns:
-    - "*IDC/*"
+    # - "*IDC/*"
+    # - "*"  # for full downloads 
+    - "*/patches/*"  # for only h5 downloads 
+  
