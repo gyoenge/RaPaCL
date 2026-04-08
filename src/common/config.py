@@ -49,7 +49,7 @@ def parse_common_args() -> argparse.Namespace:
         "--mode",
         type=str,
         default="eval",
-        choices=["eval", "train", "tuning"],
+        choices=["all", "eval", "train", "tuning"],
         help="Execution mode",
     )
 
