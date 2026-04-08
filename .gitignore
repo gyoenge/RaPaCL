@@ -232,3 +232,8 @@ selected_results/
 selected_results/*
 */selected_results/
 */selected_results/* 
+
+# generated configs 
+*/generated/
+*/generated/*
+*/img2rad-*.yaml
