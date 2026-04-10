@@ -1,12 +1,12 @@
+from __future__ import annotations
 # distributed learning version of pretrain_transtab.py
 """
 For single node 2GPU: 
-torchrun --nproc_per_node=2 -m src.rapacl.pretrain_transtab \ 
+torchrun --nproc_per_node=2 -m src.rapacl.pretrain_transtab_distributed \ 
     --config configs/pretrain_transtab/idc_allxenium.yaml \ 
     --mode train
 """
 
-from __future__ import annotations
 
 import json
 import os

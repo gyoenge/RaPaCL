@@ -15,6 +15,7 @@ model:
   gene_head_hidden_dims: [512, 256]
   dropout: 0.1
   pretrained: true
+  radiomics_dim: 930 ### 
 
 train:
   # batch_size: 32
@@ -29,14 +30,15 @@ train:
   pin_memory: true
 
 runtime:
-  device: cuda:1
-  folds: [0, 1, 2, 3]
+  device: cuda:0
+  folds: [0,] # [0, 1, 2, 3]
   run_train: true
   run_eval: true
 
 data:
   normalize_gene_expression: true
   radiomics_parquet_dir: /root/workspace/datasets/hest_data/eval/bench_data/IDC/radiomics_normpersample
+  # radiomics_parquet_dir: /root/workspace/datasets/hest_data/eval/bench_data/IDC/radiomics_raw
   radiomics_key_column: barcode
   radiomics_apply_train_split_scaling: true  # train 기준 normalization 적용 여부 
     # train 기준 상수 feature 제거 & train 기준 z-score scaling 

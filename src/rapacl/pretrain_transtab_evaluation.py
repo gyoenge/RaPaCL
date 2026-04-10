@@ -1,3 +1,4 @@
+from __future__ import annotations
 # 평가 스크립트
 # 체크포인트 로드 → embedding 추출 → UMAP/t-SNE 시각화 → label 기준 해석
 """
@@ -19,12 +20,10 @@ python -m src.rapacl.pretrain_transtab_evaluation \
 """
 
 
-from __future__ import annotations
-
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -132,19 +131,287 @@ def save_column_info(
 # Checkpoint helpers
 # =========================
 
-def resolve_checkpoint_dir(checkpoint_root: str | Path, checkpoint_name: str | None = None) -> Path:
-    checkpoint_root = Path(checkpoint_root)
-    if checkpoint_name:
-        checkpoint_dir = checkpoint_root / checkpoint_name
-        if not checkpoint_dir.exists():
-            raise FileNotFoundError(f"Checkpoint dir not found: {checkpoint_dir}")
-        return checkpoint_dir
+MODEL_BIN_NAME = "pytorch_model.bin"
+INPUT_ENCODER_BIN_NAME = "input_encoder.bin"
+OPTIMIZER_BIN_NAME = "optimizer.pt"
+TRAINING_ARGS_NAME = "training_args.json"
 
-    candidates = [p for p in checkpoint_root.iterdir() if p.is_dir()]
-    if not candidates:
-        raise FileNotFoundError(f"No checkpoint directory found in: {checkpoint_root}")
-    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return candidates[0]
+
+def _is_model_bin(path: Path) -> bool:
+    return path.is_file() and path.name == MODEL_BIN_NAME
+
+
+def _list_dir_safe(path: Path) -> list[str]:
+    try:
+        return sorted([p.name for p in path.iterdir()])
+    except Exception:
+        return []
+
+
+def _find_model_bin_in_dir(checkpoint_dir: Path) -> Path | None:
+    """
+    Search common model weight locations inside a checkpoint directory.
+    """
+    candidates = [
+        checkpoint_dir / MODEL_BIN_NAME,
+        checkpoint_dir / "model" / MODEL_BIN_NAME,
+        checkpoint_dir / "extractor" / MODEL_BIN_NAME,
+    ]
+    for cand in candidates:
+        if cand.exists():
+            return cand
+
+    # fallback: recursive search
+    found = list(checkpoint_dir.rglob(MODEL_BIN_NAME))
+    if found:
+        found.sort(key=lambda p: len(p.parts))
+        return found[0]
+    return None
+
+
+def _find_input_encoder_bin(checkpoint_dir: Path) -> Path | None:
+    candidates = [
+        checkpoint_dir / INPUT_ENCODER_BIN_NAME,
+        checkpoint_dir / "model" / INPUT_ENCODER_BIN_NAME,
+        checkpoint_dir / "extractor" / INPUT_ENCODER_BIN_NAME,
+    ]
+    for cand in candidates:
+        if cand.exists():
+            return cand
+
+    found = list(checkpoint_dir.rglob(INPUT_ENCODER_BIN_NAME))
+    if found:
+        found.sort(key=lambda p: len(p.parts))
+        return found[0]
+    return None
+
+
+def _find_feature_extractor_state_dir(checkpoint_dir: Path) -> Path | None:
+    """
+    We want the directory that contains:
+      - extractor.json
+      - tokenizer/   (optional but common)
+
+    Common cases:
+      checkpoint_dir/extractor/
+      checkpoint_dir/
+    """
+    direct_candidates = [
+        checkpoint_dir / "extractor",
+        checkpoint_dir,
+    ]
+
+    for cand in direct_candidates:
+        extractor_json = cand / "extractor.json"
+        tokenizer_dir = cand / "tokenizer"
+        if extractor_json.exists() or tokenizer_dir.exists():
+            return cand
+
+    # recursive fallback
+    for p in checkpoint_dir.rglob("extractor.json"):
+        return p.parent
+
+    return None
+
+
+def resolve_checkpoint_path(
+    checkpoint_root: str | Path,
+    checkpoint_name: str | None = None,
+) -> Path:
+    """
+    Return a concrete checkpoint directory or model bin path.
+
+    Rules:
+    1. If checkpoint_name is given:
+       - root/checkpoint_name can be either a file or a directory.
+    2. If not given:
+       - prefer latest subdirectory containing pytorch_model.bin
+       - else prefer latest subdirectory
+       - else if root itself contains pytorch_model.bin, return root
+    """
+    checkpoint_root = Path(checkpoint_root)
+
+    if not checkpoint_root.exists():
+        raise FileNotFoundError(f"Checkpoint root does not exist: {checkpoint_root}")
+
+    if checkpoint_name:
+        candidate = checkpoint_root / checkpoint_name
+        if not candidate.exists():
+            raise FileNotFoundError(
+                f"Checkpoint target not found: {candidate}\n"
+                f"Available under root: {_list_dir_safe(checkpoint_root)}"
+            )
+        return candidate
+
+    if checkpoint_root.is_file():
+        return checkpoint_root
+
+    # Case 1: root itself already looks like a checkpoint dir
+    if _find_model_bin_in_dir(checkpoint_root) is not None:
+        return checkpoint_root
+
+    # Case 2: choose latest subdir containing pytorch_model.bin
+    subdirs = [p for p in checkpoint_root.iterdir() if p.is_dir()]
+    with_model = [p for p in subdirs if _find_model_bin_in_dir(p) is not None]
+    if with_model:
+        with_model.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return with_model[0]
+
+    # Case 3: fallback to latest subdir
+    if subdirs:
+        subdirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return subdirs[0]
+
+    raise FileNotFoundError(
+        f"No checkpoint candidate found in: {checkpoint_root}"
+    )
+
+
+def inspect_checkpoint(checkpoint_path: str | Path) -> dict[str, Any]:
+    checkpoint_path = Path(checkpoint_path)
+
+    info: dict[str, Any] = {
+        "input_path": str(checkpoint_path),
+        "exists": checkpoint_path.exists(),
+        "is_file": checkpoint_path.is_file(),
+        "is_dir": checkpoint_path.is_dir(),
+        "resolved_model_bin": None,
+        "resolved_input_encoder_bin": None,
+        "resolved_feature_extractor_dir": None,
+        "dir_listing": [],
+    }
+
+    if not checkpoint_path.exists():
+        return info
+
+    if checkpoint_path.is_file():
+        if checkpoint_path.name == MODEL_BIN_NAME:
+            info["resolved_model_bin"] = str(checkpoint_path)
+        return info
+
+    info["dir_listing"] = _list_dir_safe(checkpoint_path)
+
+    model_bin = _find_model_bin_in_dir(checkpoint_path)
+    input_encoder_bin = _find_input_encoder_bin(checkpoint_path)
+    feat_dir = _find_feature_extractor_state_dir(checkpoint_path)
+
+    if model_bin is not None:
+        info["resolved_model_bin"] = str(model_bin)
+    if input_encoder_bin is not None:
+        info["resolved_input_encoder_bin"] = str(input_encoder_bin)
+    if feat_dir is not None:
+        info["resolved_feature_extractor_dir"] = str(feat_dir)
+
+    return info
+
+
+def load_model_weights_safely(model: torch.nn.Module, checkpoint_path: str | Path) -> Path:
+    """
+    Load model weights from either:
+    - a direct pytorch_model.bin file
+    - a checkpoint directory containing pytorch_model.bin somewhere inside
+    """
+    checkpoint_path = Path(checkpoint_path)
+
+    if checkpoint_path.is_file():
+        if checkpoint_path.name != MODEL_BIN_NAME:
+            raise FileNotFoundError(
+                f"Checkpoint file is not {MODEL_BIN_NAME}: {checkpoint_path}"
+            )
+        model.load(str(checkpoint_path))
+        return checkpoint_path
+
+    if checkpoint_path.is_dir():
+        model_bin = _find_model_bin_in_dir(checkpoint_path)
+        if model_bin is None:
+            raise FileNotFoundError(
+                f"Could not find {MODEL_BIN_NAME} under directory: {checkpoint_path}\n"
+                f"Contents: {_list_dir_safe(checkpoint_path)}"
+            )
+        model.load(str(model_bin))
+        return model_bin
+
+    raise FileNotFoundError(f"Checkpoint path does not exist: {checkpoint_path}")
+
+
+def load_feature_extractor_safely(collate_fn: Any, checkpoint_path: str | Path) -> Path | None:
+    """
+    Load extractor/tokenizer state if available.
+    """
+    checkpoint_path = Path(checkpoint_path)
+
+    base_dir = checkpoint_path.parent if checkpoint_path.is_file() else checkpoint_path
+    feat_dir = _find_feature_extractor_state_dir(base_dir)
+    if feat_dir is None:
+        return None
+
+    if hasattr(collate_fn, "feature_extractor") and hasattr(collate_fn.feature_extractor, "load"):
+        collate_fn.feature_extractor.load(str(feat_dir))
+        return feat_dir
+
+    return None
+
+
+def build_contrastive_learner_robust(
+    categorical_columns=None,
+    numerical_columns=None,
+    binary_columns=None,
+    projection_dim=128,
+    num_partition=3,
+    overlap_ratio=0.5,
+    supervised=True,
+    hidden_dim=128,
+    num_layer=2,
+    num_attention_head=8,
+    hidden_dropout_prob=0,
+    ffn_dim=256,
+    activation="relu",
+    device="cuda:0",
+    checkpoint=None,
+    ignore_duplicate_cols=True,
+    logger=None,
+    **kwargs,
+):
+    model = TransTabForCL(
+        categorical_columns=categorical_columns,
+        numerical_columns=numerical_columns,
+        binary_columns=binary_columns,
+        num_partition=num_partition,
+        hidden_dim=hidden_dim,
+        num_layer=num_layer,
+        num_attention_head=num_attention_head,
+        hidden_dropout_prob=hidden_dropout_prob,
+        supervised=supervised,
+        ffn_dim=ffn_dim,
+        projection_dim=projection_dim,
+        overlap_ratio=overlap_ratio,
+        activation=activation,
+        device=device,
+    )
+
+    collate_fn = TransTabCollatorForCL(
+        categorical_columns=categorical_columns,
+        numerical_columns=numerical_columns,
+        binary_columns=binary_columns,
+        overlap_ratio=overlap_ratio,
+        num_partition=num_partition,
+        ignore_duplicate_cols=ignore_duplicate_cols,
+    )
+
+    if checkpoint is not None:
+        ckpt_info = inspect_checkpoint(checkpoint)
+        if logger is not None:
+            logger.info("Checkpoint inspection: %s", ckpt_info)
+
+        loaded_model_bin = load_model_weights_safely(model, checkpoint)
+        if logger is not None:
+            logger.info("Loaded model weights from: %s", loaded_model_bin)
+
+        loaded_feat_dir = load_feature_extractor_safely(collate_fn, checkpoint)
+        if logger is not None:
+            logger.info("Loaded feature extractor dir: %s", loaded_feat_dir)
+
+    return model, collate_fn
 
 
 # =========================
@@ -424,11 +691,14 @@ def main() -> None:
     save_column_info(run_dir, cat_cols, num_cols, bin_cols)
     logger.info("Detected columns -> categorical=%d numerical=%d binary=%d", len(cat_cols), len(num_cols), len(bin_cols))
 
-    checkpoint_dir = resolve_checkpoint_dir(
+    checkpoint_target = resolve_checkpoint_path(
         cfg["paths"]["checkpoint_dir"],
         eval_cfg.get("checkpoint_name"),
     )
-    logger.info("Using checkpoint dir: %s", checkpoint_dir)
+    logger.info("Using checkpoint target: %s", checkpoint_target)
+
+    ckpt_info = inspect_checkpoint(checkpoint_target)
+    logger.info("Checkpoint inspection summary: %s", ckpt_info)
 
     model_cfg = cfg["model"]
     runtime_device = cfg["runtime"].get("device", "cpu")
@@ -437,7 +707,7 @@ def main() -> None:
     device = torch.device(runtime_device)
 
     try:
-        model, collate_fn = build_contrastive_learner(
+        model, collate_fn = build_contrastive_learner_robust(
             categorical_columns=cat_cols,
             numerical_columns=num_cols,
             binary_columns=bin_cols,
@@ -452,11 +722,13 @@ def main() -> None:
             ffn_dim=model_cfg.get("ffn_dim", 256),
             activation=model_cfg.get("activation", "relu"),
             device=str(device),
-            checkpoint=str(checkpoint_dir),
+            checkpoint=str(checkpoint_target),
             ignore_duplicate_cols=model_cfg.get("ignore_duplicate_cols", True),
+            logger=logger,
         )
-    except Exception:
-        # Fallback to simpler public builder used in your training script.
+    except Exception as e:
+        logger.warning("Robust loader failed, fallback to transtab builder. Error: %s", e)
+
         model, collate_fn = transtab.build_contrastive_learner(
             cat_cols=cat_cols,
             num_cols=num_cols,
@@ -465,8 +737,13 @@ def main() -> None:
             num_partition=model_cfg.get("num_partition", 3),
             overlap_ratio=model_cfg.get("overlap_ratio", 0.5),
         )
-        if hasattr(model, "load"):
-            model.load(str(checkpoint_dir))
+
+        # explicit safe loading instead of model.load(checkpoint_dir)
+        loaded_model_bin = load_model_weights_safely(model, checkpoint_target)
+        logger.info("Fallback loader loaded model weights from: %s", loaded_model_bin)
+
+        loaded_feat_dir = load_feature_extractor_safely(collate_fn, checkpoint_target)
+        logger.info("Fallback loader loaded feature extractor dir: %s", loaded_feat_dir)
 
     model = model.to(device)
     model.eval()
