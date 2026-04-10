@@ -1,4 +1,10 @@
 from __future__ import annotations
+"""
+CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 \
+  -m src.rapacl.pretrain_transtab \
+  --config configs/pretrain_transtab/idc_tenx99.yaml \
+  --mode train
+"""
 
 import json
 import os
@@ -11,11 +17,7 @@ from src.common.config import load_yaml, parse_common_args, apply_cli_overrides
 from src.common.logger import setup_logger
 from src.common.utils import ensure_dir, save_yaml, seed_everything
 
-from transtab import (
-    load_data,
-    build_contrastive_learner,
-    train,
-)
+import transtab 
 
 
 def save_column_info(
@@ -96,7 +98,7 @@ def main() -> None:
     if is_main_process(rank):
         logger.info("Preparing custom TransTab dataset from: %s", cfg["paths"]["data_root"])
 
-    allset, trainset, valset, testset, cat_cols, num_cols, bin_cols = load_data(
+    allset, trainset, valset, testset, cat_cols, num_cols, bin_cols = transtab.load_data(
         [f'{cfg["paths"]["data_root"]}']
     )
 
@@ -116,7 +118,7 @@ def main() -> None:
     model_cfg = cfg["model"]
     train_cfg = cfg["train"]
 
-    model, collate_fn = build_contrastive_learner(
+    model, collate_fn = transtab.build_contrastive_learner(
         cat_cols=cat_cols,
         num_cols=num_cols,
         bin_cols=bin_cols,
@@ -130,7 +132,7 @@ def main() -> None:
         if is_main_process(rank):
             logger.info("Start training...")
 
-        train(
+        transtab.train(
             model=model,
             trainset=trainset,
             valset=valset,
