@@ -39,40 +39,36 @@ from src.common.utils import ensure_dir
 from src.rapacl.transtab_custom import unwrap_dataset
 
 
-def extract_embeddings(model, dataset, logger, batch_size=256):
+from tqdm import tqdm
+import numpy as np
+import torch
+
+def extract_embeddings(model, dataset, batch_size=256, logger=None):
     x, y = unwrap_dataset(dataset)
     model.eval()
 
     emb_list = []
     y_list = []
 
-    for i in tqdm(
-        range(0, len(x), batch_size),
-        total=len(x) // batch_size + 1,
-        desc="Extracting embeddings"
-    ):
+    for i in tqdm(range(0, len(x), batch_size), desc="Extracting embeddings"):
         bs_x = x.iloc[i:i+batch_size]
         bs_y = y.iloc[i:i+batch_size]
 
         with torch.no_grad():
-            # 모델 구조에 맞게 수정 필요
-
-            # just for output debugging ###########s
-            # outputs = model.input_encoder(bs_x)
-            # print("type(outputs):", type(outputs))
-            # if isinstance(outputs, tuple):
-            #     print("tuple len:", len(outputs))
-            #     print("tuple[0] type:", type(outputs[0]))
-            # elif isinstance(outputs, dict):
-            #     print("dict keys:", outputs.keys())
-            # else:
-            #     print("outputs:", outputs)
-            ########################################
-
             outputs = model.input_encoder(bs_x)
 
             if isinstance(outputs, dict):
-                emb = outputs["embedding"]
+                emb = outputs["embedding"]          # (B, L, D)
+                attn_mask = outputs["attention_mask"]  # (B, L)
+
+                if logger is not None and i == 0:
+                    logger.info("embedding shape: %s", tuple(emb.shape))
+                    logger.info("attention_mask shape: %s", tuple(attn_mask.shape))
+
+                # masked mean pooling
+                mask = attn_mask.unsqueeze(-1).float()   # (B, L, 1)
+                emb = (emb * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1e-9)  # (B, D)
+
             elif isinstance(outputs, tuple):
                 emb = outputs[0]
             else:
@@ -83,14 +79,11 @@ def extract_embeddings(model, dataset, logger, batch_size=256):
             else:
                 emb = np.asarray(emb)
 
-            if emb.ndim == 0:
-                raise ValueError(f"Embedding is scalar: {emb}")
-
             if emb.ndim == 1:
                 emb = emb[None, :]
-            
-            if logger is not None and i == 0:
-                logger.info("embedding shape: %s", emb.shape)
+
+            if emb.ndim != 2:
+                raise ValueError(f"Expected pooled embedding to be 2D, got shape={emb.shape}")
 
         emb_list.append(emb)
         y_list.append(bs_y.to_numpy())
@@ -99,20 +92,32 @@ def extract_embeddings(model, dataset, logger, batch_size=256):
     y_all = np.concatenate(y_list, axis=0)
     return emb_all, y_all
 
+
+"""
+embedding shape: (256, 512, 128)은 의미가:
+    256 = batch size
+    512 = token 길이
+    128 = hidden dim
+즉 지금 embedding은 샘플당 하나의 벡터가 아니라, 샘플당 512개 토큰의 벡터 시퀀스이다. 
+
+그래서 UMAP, t-SNE, clustering에 바로 넣으면 안 되고,
+반드시 (batch, dim) 형태로 pooling 해야 한다. 
+
+--> 가장 좋은 방법: output dict에 attention_mask도 있으니까, 
+                masked mean pooling을 쓰는 게 제일 맞다. 
+"""
+
+
 def compute_clustering_metrics(embeddings, labels, num_classes):
     kmeans = KMeans(n_clusters=num_classes, random_state=42, n_init="auto")
     cluster_ids = kmeans.fit_predict(embeddings)
 
-    sil = silhouette_score(embeddings, labels)
-    nmi = normalized_mutual_info_score(labels, cluster_ids)
-    ari = adjusted_rand_score(labels, cluster_ids)
-
-    return {
-        "silhouette": sil,
-        "nmi": nmi,
-        "ari": ari,
-        "cluster_ids": cluster_ids,
+    metrics = {
+        "silhouette": float(silhouette_score(embeddings, labels)),
+        "nmi": float(normalized_mutual_info_score(labels, cluster_ids)),
+        "ari": float(adjusted_rand_score(labels, cluster_ids)),
     }
+    return metrics, cluster_ids
 
 def save_umap_plot(embeddings, labels, save_path, title="UMAP"):
     reducer = UMAP(n_components=2, random_state=42)
