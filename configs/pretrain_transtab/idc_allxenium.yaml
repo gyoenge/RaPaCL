@@ -65,9 +65,6 @@ wandb:
 # python -m src.rapacl.pretrain_transtab --config configs/pretrain_transtab/idc_allxenium.yaml --mode train
 
 
-paths:
-  checkpoint_dir: /root/workspace/RaPaCL/outputs/rapacl/IDC_ALLXENIUM/checkpoints
-
 evaluation:
   # checkpoint_name: extractor # null이면 가장 최근 checkpoint dir 사용
   split: test
