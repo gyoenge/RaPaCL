@@ -92,6 +92,8 @@ def save_tsne_plot(embeddings, labels, save_path, title="t-SNE", max_samples=800
         idx = rng.choice(n, size=max_samples, replace=False)
         embeddings = embeddings[idx]
         labels = labels[idx]
+    else:
+        idx = np.arange(n)
 
     reducer = TSNE(
         n_components=2,
@@ -109,7 +111,8 @@ def save_tsne_plot(embeddings, labels, save_path, title="t-SNE", max_samples=800
     plt.tight_layout()
     plt.savefig(save_path, dpi=200)
     plt.close()
-    return z
+
+    return z, labels, idx
 
 
 def find_representative_points(z, labels):
@@ -250,17 +253,20 @@ def run_eval_detailed(
         title="UMAP of projection space with KMeans cluster ids",
     )
 
-    z_tsne = save_tsne_plot(
+    z_tsne, labels_tsne, tsne_indices = save_tsne_plot(
         embeddings=embeddings,
         labels=labels,
         save_path=eval_dir / "tsne_labels.png",
         title="t-SNE of projection space",
-    )
+    ) 
+    # t-SNE uses sampled subset
 
     # 4) representative points
     logger.info("Finding representative points...")
     umap_reps = find_representative_points(z_umap, labels)
-    tsne_reps = find_representative_points(z_tsne, labels)
+    # tsne_reps = find_representative_points(z_tsne, labels_tsne)
+    tsne_reps_local = find_representative_points(z_tsne, labels_tsne) # 저장되는 representative point가 전체 데이터 기준 index가 된다
+    tsne_reps = {k: int(tsne_indices[v]) for k, v in tsne_reps_local.items()}
 
     rep_info = {
         "umap_representatives": umap_reps,
