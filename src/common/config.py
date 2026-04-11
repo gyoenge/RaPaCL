@@ -66,6 +66,9 @@ def parse_common_args() -> argparse.Namespace:
     parser.add_argument("--pretrained", type=str, default=None)
     parser.add_argument("--optimizer_name", type=str, default=None)
 
+    # distributed setitngs
+    parser.add_argument("--distributed", type=lambda x: x.lower() == "true", default=None)
+
     return parser.parse_args()
 
 

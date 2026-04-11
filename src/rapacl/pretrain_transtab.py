@@ -5,6 +5,12 @@ CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 \
   --config configs/pretrain_transtab/idc_allxenium.yaml \
   --mode train
 """
+"""
+python -m src.rapacl.pretrain_transtab \
+  --config configs/pretrain_transtab/idc_allxenium.yaml \
+  --distributed false \
+  --mode eval
+"""
 
 import json
 import os
@@ -69,7 +75,11 @@ def main() -> None:
     cfg = apply_cli_overrides(cfg, args)
     cfg["mode"] = args.mode
 
-    distributed = cfg["runtime"].get("distributed", False)
+    distributed = (
+        args.distributed
+        if args.distributed is not None
+        else cfg["runtime"].get("distributed", False)
+    )
     rank, local_rank, world_size, device = setup_distributed(distributed)
 
     seed = cfg.get("seed", 42)
@@ -116,6 +126,30 @@ def main() -> None:
             numerical_columns=num_cols,
             binary_columns=bin_cols,
         )
+
+    # num of patches per label
+    if is_main_process(rank):
+        try:
+            if isinstance(allset, (list, tuple)) and len(allset) == 1:
+                _, y_all = allset[0]
+            else:
+                _, y_all = allset
+
+            logger.info("allset type: %s", type(allset))
+            logger.info("allset len: %s", len(allset))
+
+            label_counts = y_all.value_counts().sort_index()
+
+            logger.info("=== Allset label distribution ===")
+            for label, count in label_counts.items():
+                logger.info("Label %s: %d samples", label, count)
+
+            logger.info("Total samples: %d", len(y_all))
+
+        except Exception as e:
+            logger.warning("Failed to log allset label distribution: %s", e)
+            logger.warning("allset repr: %s", repr(allset)[:500])
+
 
     model_cfg = cfg["model"]
     train_cfg = cfg["train"]
