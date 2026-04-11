@@ -73,6 +73,6 @@ evaluation:
   umap_min_dist: 0.1
   tsne_perplexity: 30
 
-# python -m src.rapacl.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --mode eval
-# python -m src.rapacl.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --mode eval_detailed
+# python -m src.rapacl.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --distributed false --mode eval
+# python -m src.rapacl.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --distributed false --mode eval_detailed
 
