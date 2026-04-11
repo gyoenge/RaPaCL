@@ -74,5 +74,5 @@ evaluation:
   umap_min_dist: 0.1
   tsne_perplexity: 30
 
-# python -m src.rapacl.pretrain_transtab_evaluation --config configs/pretrain_transtab/idc_allxenium.yaml --mode eval
+# python -m src.rapacl.pretrain_transtab --config configs/pretrain_transtab/idc_allxenium.yaml --mode eval
 
