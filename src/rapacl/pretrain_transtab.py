@@ -23,7 +23,7 @@ from src.common.config import load_yaml, parse_common_args, apply_cli_overrides
 from src.common.logger import setup_logger
 from src.common.utils import ensure_dir, save_yaml, seed_everything
 
-from transtab import (
+from transtab_custom import (
     load_data, 
     build_contrastive_learner, 
     build_classifier,
