@@ -53,19 +53,13 @@ def extract_embeddings(model, dataset, batch_size=256, logger=None):
 
             if isinstance(outputs, dict):
                 # use masked mean pooling
-                # emb = outputs["embedding"]          # (B, L, D)
-                # attn_mask = outputs["attention_mask"]  # (B, L)
-                # if logger is not None and i == 0:
-                #     logger.info("embedding shape: %s", tuple(emb.shape))
-                #     logger.info("attention_mask shape: %s", tuple(attn_mask.shape))
-                # mask = attn_mask.unsqueeze(-1).float()   # (B, L, 1)
-                # emb = (emb * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1e-9)  # (B, D)
-
-                # use CLS token embedding only
-                emb = outputs["embedding"]   # (B, L, D)
+                emb = outputs["embedding"]          # (B, L, D)
+                attn_mask = outputs["attention_mask"]  # (B, L)
                 if logger is not None and i == 0:
-                    logger.info("embedding shape: %sㄴ", tuple(emb.shape))
-                emb = emb[:, 0, :]           # (B, D)
+                    logger.info("embedding shape: %s", tuple(emb.shape))
+                    logger.info("attention_mask shape: %s", tuple(attn_mask.shape))
+                mask = attn_mask.unsqueeze(-1).float()   # (B, L, 1)
+                emb = (emb * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1e-9)  # (B, D)
 
             elif isinstance(outputs, tuple):
                 emb = outputs[0]
