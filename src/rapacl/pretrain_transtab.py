@@ -294,33 +294,33 @@ def main() -> None:
             logger.info("Start evaluating...")
             evaluate_classifier(clf, testset, logger)
 
-        # 4) detailed evaluations
-        if args.mode == "eval_detailed":
-            if is_main_process(rank):
-                logger.info("Build contrastive learner for detailed evaluation: %s", checkpoint_dir)
+    # 4) detailed evaluations
+    if args.mode == "eval_detailed":
+        if is_main_process(rank):
+            logger.info("Build contrastive learner for detailed evaluation: %s", checkpoint_dir)
 
-                cl_model, _ = build_contrastive_learner(
-                    cat_cols=cat_cols,
-                    num_cols=num_cols,
-                    bin_cols=bin_cols,
-                    supervised=model_cfg["supervised"],
-                    num_partition=model_cfg["num_partition"],
-                    overlap_ratio=model_cfg["overlap_ratio"],
-                    device=device,
-                    checkpoint=str(checkpoint_dir),
-                )
+            cl_model, _ = build_contrastive_learner(
+                cat_cols=cat_cols,
+                num_cols=num_cols,
+                bin_cols=bin_cols,
+                supervised=model_cfg["supervised"],
+                num_partition=model_cfg["num_partition"],
+                overlap_ratio=model_cfg["overlap_ratio"],
+                device=device,
+                checkpoint=str(checkpoint_dir),
+            )
 
-                run_eval_detailed(
-                    model=cl_model,
-                    allset=allset,
-                    trainset=trainset,
-                    valset=valset,
-                    testset=testset,
-                    run_dir=run_dir,
-                    logger=logger,
-                    device=device,
-                    cfg=cfg,
-                )
+            run_eval_detailed(
+                model=cl_model,
+                allset=allset,
+                trainset=trainset,
+                valset=valset,
+                testset=testset,
+                run_dir=run_dir,
+                logger=logger,
+                device=device,
+                cfg=cfg,
+            )
         
     cleanup_distributed(distributed)
 
