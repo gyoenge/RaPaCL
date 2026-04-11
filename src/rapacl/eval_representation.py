@@ -24,6 +24,7 @@ import json
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from sklearn.cluster import KMeans
 from sklearn.metrics import (
@@ -38,27 +39,58 @@ from src.common.utils import ensure_dir
 from src.rapacl.transtab_custom import unwrap_dataset
 
 
-def extract_embeddings(model, dataset, batch_size=256):
+def extract_embeddings(model, dataset, logger, batch_size=256):
     x, y = unwrap_dataset(dataset)
     model.eval()
 
     emb_list = []
     y_list = []
 
-    for i in range(0, len(x), batch_size):
+    for i in tqdm(
+        range(0, len(x), batch_size),
+        total=len(x) // batch_size + 1,
+        desc="Extracting embeddings"
+    ):
         bs_x = x.iloc[i:i+batch_size]
         bs_y = y.iloc[i:i+batch_size]
 
         with torch.no_grad():
             # 모델 구조에 맞게 수정 필요
+
+            # just for output debugging ###########s
+            # outputs = model.input_encoder(bs_x)
+            # print("type(outputs):", type(outputs))
+            # if isinstance(outputs, tuple):
+            #     print("tuple len:", len(outputs))
+            #     print("tuple[0] type:", type(outputs[0]))
+            # elif isinstance(outputs, dict):
+            #     print("dict keys:", outputs.keys())
+            # else:
+            #     print("outputs:", outputs)
+            ########################################
+
             outputs = model.input_encoder(bs_x)
-            if isinstance(outputs, tuple):
+
+            if isinstance(outputs, dict):
+                emb = outputs["embedding"]
+            elif isinstance(outputs, tuple):
                 emb = outputs[0]
             else:
                 emb = outputs
 
             if hasattr(emb, "detach"):
                 emb = emb.detach().cpu().numpy()
+            else:
+                emb = np.asarray(emb)
+
+            if emb.ndim == 0:
+                raise ValueError(f"Embedding is scalar: {emb}")
+
+            if emb.ndim == 1:
+                emb = emb[None, :]
+            
+            if logger is not None and i == 0:
+                logger.info("embedding shape: %s", emb.shape)
 
         emb_list.append(emb)
         y_list.append(bs_y.to_numpy())
@@ -173,6 +205,7 @@ def run_eval_detailed(
     embeddings, labels = extract_embeddings(
         model=model,
         dataset=allset,
+        logger=logger, 
         batch_size=train_cfg.get("eval_batch_size", 256),
     )
 
