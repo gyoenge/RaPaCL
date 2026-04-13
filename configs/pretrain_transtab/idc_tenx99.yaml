@@ -7,9 +7,9 @@ experiment:
 
 paths:
   data_root: /root/workspace/datasets/prepared_tabular/IDC_TENX99
-  output_root: /root/workspace/RaPaCL/outputs/rapacl/IDC_TENX99
-  log_dir: /root/workspace/RaPaCL/outputs/rapacl/IDC_TENX99/logs
-  checkpoint_dir: /root/workspace/RaPaCL/outputs/rapacl/IDC_TENX99/checkpoints
+  output_root: /root/workspace/RaPaCL/outputs/pretrain_transtab/IDC_TENX99
+  log_dir: /root/workspace/RaPaCL/outputs/pretrain_transtab/IDC_TENX99/logs
+  checkpoint_dir: /root/workspace/RaPaCL/outputs/pretrain_transtab/IDC_TENX99/checkpoints
 
 runtime:
   device: cuda:0

@@ -40,7 +40,7 @@ cd RaPaCL/
 (i) prepare tabular custom data 
 - from H5 (HEST-style)
   ```bash
-  python -m src.rapacl.prepare_tabular \
+  python -m src.pretrain_transtab.prepare_tabular \
     --config configs/data/prepare_tabular.yaml 
   ```
 
@@ -59,7 +59,7 @@ cd RaPaCL/
 
 - pretrain with single GPU 
   ```bash
-  python -m src.rapacl.pretrain_transtab \
+  python -m src.pretrain_transtab.pretrain_transtab \
     --config configs/pretrain_transtab/idc_allxenium.yaml \
     --distributed false \
     --mode train
@@ -68,14 +68,14 @@ cd RaPaCL/
 - pretrain with multi GPU 
   ```bash
   CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 \
-    -m src.rapacl.pretrain_transtab \
+    -m src.pretrain_transtab.pretrain_transtab \
     --config configs/pretrain_transtab/idc_allxenium.yaml \
     --mode train
   ```
 
 - simple evaluation of pretraining
   ```bash 
-  python -m src.rapacl.pretrain_transtab \
+  python -m src.pretrain_transtab.pretrain_transtab \
     --config configs/pretrain_transtab/idc_allxenium.yaml \
     --distributed false \
     --mode eval
@@ -83,7 +83,7 @@ cd RaPaCL/
 
 - detailed evaluation of pretraining
   ```bash
-  python -m src.rapacl.pretrain_transtab \
+  python -m src.pretrain_transtab.pretrain_transtab \
     --config configs/pretrain_transtab/idc_allxenium.yaml \
     --distributed false \
     --mode eval_detailed

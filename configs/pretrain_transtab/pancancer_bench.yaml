@@ -7,9 +7,9 @@ experiment:
 
 paths:
   data_root: /root/workspace/datasets/prepared_tabular/PANCANCER_BENCH
-  output_root: /root/workspace/RaPaCL/outputs/rapacl/PANCANCER_BENCH
-  log_dir: /root/workspace/RaPaCL/outputs/rapacl/PANCANCER_BENCH/logs
-  checkpoint_dir: /root/workspace/RaPaCL/outputs/rapacl/PANCANCER_BENCH/checkpoints
+  output_root: /root/workspace/RaPaCL/outputs/pretrain_transtab/PANCANCER_BENCH
+  log_dir: /root/workspace/RaPaCL/outputs/pretrain_transtab/PANCANCER_BENCH/logs
+  checkpoint_dir: /root/workspace/RaPaCL/outputs/pretrain_transtab/PANCANCER_BENCH/checkpoints
 
 # runtime:
 #   device: cuda:0
@@ -62,7 +62,7 @@ wandb:
   notes: "TransTab pretraining with original custom dataset format"
 
 
-# CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 -m src.rapacl.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --mode train
+# CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 -m src.pretrain_transtab.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --mode train
 
 evaluation:
   # checkpoint_name: extractor # null이면 가장 최근 checkpoint dir 사용
@@ -73,6 +73,6 @@ evaluation:
   umap_min_dist: 0.1
   tsne_perplexity: 30
 
-# python -m src.rapacl.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --distributed false --mode eval
-# python -m src.rapacl.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --distributed false --mode eval_detailed
+# python -m src.pretrain_transtab.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --distributed false --mode eval
+# python -m src.pretrain_transtab.pretrain_transtab --config configs/pretrain_transtab/pancancer_bench.yaml --distributed false --mode eval_detailed
 
