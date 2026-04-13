@@ -14,7 +14,7 @@ from sklearn.manifold import TSNE
 from umap import UMAP
 
 from src.common.utils import ensure_dir
-from RaPaCL.src.pretrain_transtab.transtab_custom import unwrap_dataset
+from src.pretrain_transtab.transtab_custom import unwrap_dataset
 
 
 def extract_projection_embeddings(model, dataset, batch_size=256, logger=None):
