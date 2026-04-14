@@ -8,6 +8,7 @@ import math
 import collections 
 from typing import List, Dict, Mapping, Optional, Tuple, Any, Union
 import pandas as pd 
+import numpy as np 
 
 import torch 
 import torch.nn as nn 
@@ -359,9 +360,8 @@ class TransTabForRadiomics(TransTabModelCustom):
                 feat_x = self.cls_token(**feat_x) 
                 feat_x = self.encoder(**feat_x)
                 # [CLS, CONTRAST, feature...] 
-                if i == 0: 
-                    feat_x_for_classification = feat_x # full feature 사용 
-                    # feat_x_for_classification = feat_x[:, 0, :] # CLS 사용 
+                if i == 0: # full feature column
+                    feat_x_for_classification = feat_x # classifier 내부적으로 CLS 임베딩을 예측에 사용. 
                 # use contrastive token (idx=1), project the embedding, for contrastive learning 
                 feat_x_proj = feat_x[:,1,:] 
                 feat_x_proj = self.projection_head(feat_x_proj)  
@@ -375,10 +375,25 @@ class TransTabForRadiomics(TransTabModelCustom):
         return feat_x_multiview, logits 
 
     def _build_sub_x_list_random(self, 
-        x, 
-        num_sub_cols, 
+        x, # DataFrame with `num_sub_cols`` radiomics feature columns 
+        num_sub_cols: List[int], 
     ): 
-        pass 
+        """returns a list of sub-DataFrames, each containing a random subset of columns"""
+        cols = x.columns.tolist()
+        total_cols = len(cols)
+        if total_cols != num_sub_cols[0]:
+            raise ValueError(f"expect {num_sub_cols[0]} columns, get {total_cols} instead")
+        sub_x_list = [] 
+        for count in num_sub_cols: 
+            if count == total_cols: 
+                selected_cols = cols 
+            else: 
+                # select count columns randomly 
+                indices = np.random.choice(total_cols, count, replace=False)
+                selected_cols = [cols[i] for i in indices]
+            sub_x = x.copy()[selected_cols]
+            sub_x_list.append(sub_x)
+        return sub_x_list 
         
     def forward_withSubX(self, 
         sub_x_list, 
@@ -413,7 +428,6 @@ class TransTabForRadiomics(TransTabModelCustom):
             'ffn_dim': self.encoder.ffn_dim, 
             'projection_dim': self.projection_dim, 
             'num_sub_cols': self.num_sub_cols, 
-            'gpe_drop_rate': self.gpe_drop_rate, 
             'activation': self.activation, 
         }
         with open(os.path.join(ckpt_dir, constants.TRANSTAB_PARAMS_NAME), 'w') as f:
