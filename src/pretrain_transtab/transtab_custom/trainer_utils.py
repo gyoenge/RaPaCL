@@ -142,7 +142,9 @@ class TransTabCollatorForCL(TrainCollator):
                 sub_col = np.concatenate([sub_col, sub_col_list[i+1][:overlap]])
             elif overlap >0 and i == n-1:
                 sub_col = np.concatenate([sub_col, sub_col_list[i-1][-overlap:]])
-            # np.random.shuffle(sub_col)
+            ### activate shuffle ###
+            np.random.shuffle(sub_col)
+            ########################
             sub_x = x.copy()[sub_col]
             sub_x_list.append(sub_x)
         return sub_x_list
