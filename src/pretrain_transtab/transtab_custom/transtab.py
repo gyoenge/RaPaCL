@@ -2,9 +2,15 @@ import pdb
 import os
 
 from src.pretrain_transtab.transtab_custom import constants
-from src.pretrain_transtab.transtab_custom.modeling_transtab import TransTabClassifier, TransTabRegressor, TransTabFeatureExtractor, TransTabFeatureProcessor
-from src.pretrain_transtab.transtab_custom.modeling_transtab import TransTabForCL
-from src.pretrain_transtab.transtab_custom.modeling_transtab import TransTabInputEncoder, TransTabModel
+from src.pretrain_transtab.transtab_custom.models.base import (
+    TransTabFeatureExtractor, TransTabFeatureProcessor,
+    TransTabInputEncoder, TransTabModel
+) 
+from src.pretrain_transtab.transtab_custom.models.classifier import TransTabClassifier
+from src.pretrain_transtab.transtab_custom.models.regressor import TransTabRegressor
+from src.pretrain_transtab.transtab_custom.models.contrastive import (
+    TransTabForCL,
+)
 from src.pretrain_transtab.transtab_custom.dataset import load_data
 from src.pretrain_transtab.transtab_custom.evaluator import predict, evaluate
 from src.pretrain_transtab.transtab_custom.trainer import Trainer
@@ -583,3 +589,4 @@ def train(model,
         **train_args,
     )
     trainer.train()
+    

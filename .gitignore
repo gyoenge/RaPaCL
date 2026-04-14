@@ -241,3 +241,7 @@ selected_results/*
 # generated transtab tokenizer folder
 transtab/tokenizer/
 transtab/tokenizer/* 
+
+# test notebook
+src/pretrain_transtab/transtab_custom/test.ipynb
+*/test.ipynb
