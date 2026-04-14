@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from typing import Any, Dict, Optional
 
-from src.rapacl.models.patchenc.densenet import PatchDenseNetEncoder
+from src.rapacl.models.patchenc.conv import PatchImageConvEncoder
 from src.rapacl.models.transtab.radiomics import TransTabRadiomicsEncoder
 from src.rapacl.models.heads.projection import ProjectionHead
 from src.rapacl.models.heads.classifier import LinearClassifier
@@ -27,25 +27,38 @@ class RaPaCL(nn.Module):
 
     def __init__(
         self,
+        # -------------------------------------------------
         # patch encoder
+        # -------------------------------------------------
+        patch_backbone_name: str = "densenet121",
         patch_pretrained: bool = True,
         patch_feat_dim: int = 1024,
+        patch_freeze_backbone: bool = False,
+        patch_use_bn: bool = False,
 
+        # -------------------------------------------------
         # radiomics encoder
+        # -------------------------------------------------
         radiomics_hidden_dim: int = 128,
         separate_contrast_token: bool = True,
 
+        # -------------------------------------------------
         # shared contrastive projection
+        # -------------------------------------------------
         proj_dim: int = 128,
         projection_use_mlp: bool = False,
         projection_hidden_dim: Optional[int] = None,
         projection_dropout: float = 0.0,
 
+        # -------------------------------------------------
         # classification
+        # -------------------------------------------------
         num_classes: int = 6,
         classifier_dropout: float = 0.0,
 
+        # -------------------------------------------------
         # batch correction
+        # -------------------------------------------------
         use_batch_correction: bool = True,
         num_batch_labels: Optional[int] = None,
         batch_disc_hidden_dim: Optional[int] = None,
@@ -53,7 +66,9 @@ class RaPaCL(nn.Module):
         batch_disc_dropout: float = 0.1,
         batch_disc_grl_lambda: float = 1.0,
 
+        # -------------------------------------------------
         # radiomics encoder kwargs
+        # -------------------------------------------------
         **radiomics_kwargs,
     ) -> None:
         super().__init__()
@@ -61,9 +76,12 @@ class RaPaCL(nn.Module):
         # -------------------------------------------------
         # 1. Patch encoder
         # -------------------------------------------------
-        self.patch_encoder = PatchDenseNetEncoder(
+        self.patch_encoder = PatchImageConvEncoder(
+            backbone_name=patch_backbone_name,
             pretrained=patch_pretrained,
             out_dim=patch_feat_dim,
+            freeze_backbone=patch_freeze_backbone,
+            use_bn=patch_use_bn,
         )
 
         # -------------------------------------------------
@@ -146,6 +164,7 @@ class RaPaCL(nn.Module):
         # -------------------------------------------------
         # metadata / config-ish attrs
         # -------------------------------------------------
+        self.patch_backbone_name = patch_backbone_name
         self.patch_feat_dim = patch_feat_dim
         self.radiomics_hidden_dim = radiomics_hidden_dim
         self.proj_dim = proj_dim
@@ -162,11 +181,12 @@ class RaPaCL(nn.Module):
         Parameters
         ----------
         patch_x : torch.Tensor
-            Patch images. Expected shape depends on PatchDenseNetEncoder,
+            Patch images. Expected shape depends on patch backbone,
             typically [B, C, H, W].
 
         radiomics_x : Any
-            Radiomics/tabular input, typically pd.DataFrame for TransTabRadiomicsEncoder.
+            Radiomics/tabular input, typically pd.DataFrame for
+            TransTabRadiomicsEncoder.
 
         Returns
         -------
@@ -177,9 +197,9 @@ class RaPaCL(nn.Module):
         # -------------------------------------------------
         # 1. Patch/pathomics branch
         # -------------------------------------------------
-        patch_feat = self.patch_encoder(patch_x)                  # [B, patch_feat_dim]
-        patch_proj = self.patch_projection(patch_feat)            # [B, proj_dim]
-        patch_logits = self.patch_classifier(patch_feat)          # [B, C] or [B, 1]
+        patch_feat = self.patch_encoder(patch_x)           # [B, patch_feat_dim]
+        patch_proj = self.patch_projection(patch_feat)     # [B, proj_dim]
+        patch_logits = self.patch_classifier(patch_feat)   # [B, C] or [B, 1]
 
         # -------------------------------------------------
         # 2. Radiomics branch
@@ -190,19 +210,19 @@ class RaPaCL(nn.Module):
         # - cls_embedding: [B, H]
         # - contrastive_embedding: [B, H] or None
         # - multiview_embeddings: [B, V, H]
-        rad_cls_feat = rad_out["cls_embedding"]                           # [B, H]
-        rad_ctr_feat = rad_out.get("contrastive_embedding", None)         # [B, H] or None
-        rad_multiview = rad_out["multiview_embeddings"]                   # [B, V, H]
+        rad_cls_feat = rad_out["cls_embedding"]                    # [B, H]
+        rad_ctr_feat = rad_out.get("contrastive_embedding", None)  # [B, H] or None
+        rad_multiview = rad_out["multiview_embeddings"]            # [B, V, H]
 
-        radiomics_logits = self.radiomics_classifier(rad_cls_feat)        # [B, C] or [B, 1]
+        radiomics_logits = self.radiomics_classifier(rad_cls_feat)  # [B, C] or [B, 1]
 
         # project multi-view radiomics embeddings for multimodal contrastive learning
         if rad_multiview is not None and rad_multiview.dim() == 3:
-            rad_multiview_proj = self.radiomics_projection(rad_multiview)   # [B, V, P]
+            rad_multiview_proj = self.radiomics_projection(rad_multiview)  # [B, V, P]
         else:
             rad_multiview_proj = None
 
-        # optional: also project single contrastive embedding if needed for analysis/debugging
+        # optional single contrastive embedding projection
         if rad_ctr_feat is not None:
             radiomics_ctr_proj = self.radiomics_projection(rad_ctr_feat)    # [B, P]
         else:
