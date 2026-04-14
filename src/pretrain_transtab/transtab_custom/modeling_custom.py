@@ -115,9 +115,9 @@ class TransTabModelCustom(nn.Module):
     ): 
         # extract the embeddings based on input tables 
         embedded = self.input_encoder(x)
-        embedded = self.cls_token(**embedded)
         if self.contrastive_token is not None: 
             embedded = self.contrastive_token(**embedded)
+        embedded = self.cls_token(**embedded)
 
         # pass through transformer layers to obtain final token embedding(s)
         encoder_output = self.encoder(**embedded)
@@ -200,11 +200,11 @@ class TransTabModelCustom(nn.Module):
     ):
         """solve the issue of duplicate cols: separate with different prefixes"""
         for col in duplicate_cols:
-            logger.warning('Fine duplicate cols named `{col}`, will ignore it during training!')
+            logger.warning(f'Find duplicate cols named `{col}`, will ignore it during training!')
             if col in self.categorical_columns:
                 self.categorical_columns.remove(col)
                 self.categorical_columns.append(f'[cat]{col}')
-            if col in self.numerical_colums: 
+            if col in self.numerical_columns: 
                 self.numerical_columns.remove(col)
                 self.numerical_columns.append(f'[num]{col}')
             if col in self.binary_columns:
@@ -227,7 +227,11 @@ class TransTabModelCustom(nn.Module):
 
 
 class AdditionalToken(nn.Module): 
-    """add a learnable [CLS/CONTRAST] token embedding at the **first** of each sequence."""
+    """add a learnable [CLS/CONTRAST] token embedding at the **first** of each sequence.
+        
+        call order matters: contrastive_token first, then cls_token
+        => final token order becomes [CLS, CONTRAST, feature...]
+    """
     def __init__(self, hidden_dim) -> None:
         super().__init__()
         self.weight = nn.Parameter(Tensor(hidden_dim))
@@ -350,7 +354,8 @@ class TransTabForRadiomics(TransTabModelCustom):
             for i, sub_x in enumerate(sub_x_list):
                 # encode each subset(view) feature sample into embedding
                 feat_x = self.input_encoder(sub_x) 
-                feat_x = self.contrastive_token(**feat_x) 
+                if self.contrastive_token is not None:
+                    feat_x = self.contrastive_token(**feat_x) 
                 feat_x = self.cls_token(**feat_x) 
                 feat_x = self.encoder(**feat_x)
                 # [CLS, CONTRAST, feature...] 
@@ -398,7 +403,7 @@ class TransTabForRadiomics(TransTabModelCustom):
         # save model parameters 
         model_params = {
             'categorical_columns': self.input_encoder.feature_extractor.categorical_columns,
-            'numerical_columns': self.input_encoder.feature_extractor.numorical_columns, 
+            'numerical_columns': self.input_encoder.feature_extractor.numerical_columns, 
             'binary_columns': self.input_encoder.feature_extractor.binary_columns, 
             'num_class': self.num_class, 
             'hidden_dim': self.encoder.hidden_dim, 
