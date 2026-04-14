@@ -15,7 +15,7 @@ from torch.autograd import Function
 import torch.nn.init as nn_init 
 import torch.nn.functional as F 
 
-from src.pretrain_transtab.transtab_custom.models.base import (
+from src.rapacl.models.transtab.base import (
     TransTabFeatureExtractor, 
     TransTabFeatureProcessor, 
     TransTabInputEncoder, 
@@ -24,10 +24,10 @@ from src.pretrain_transtab.transtab_custom.models.base import (
     TransTabProjectionHead, 
     TransTabLinearClassifier, 
 )
-from src.pretrain_transtab.transtab_custom.models.batchcorrection import (
+from src.rapacl.models.batchcorrection import (
     AdversarialDiscriminator, 
 )   
-import src.pretrain_transtab.transtab_custom.constants as constants 
+import src.rapacl.utils.constants as constants 
 
 import logging
 logger = logging.getLogger(__name__)
