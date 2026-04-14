@@ -3,9 +3,11 @@
 # reference: Radiomics Retrieval 
 
 import os 
+import json
 import math 
 import collections 
 from typing import List, Dict, Mapping, Optional, Tuple, Any, Union
+import pandas as pd 
 
 import torch 
 import torch.nn as nn 
@@ -95,10 +97,11 @@ class TransTabModelCustom(nn.Module):
         )
 
         # Token 
-        self.cls_token = AdditionalCLSToken(
+        # [CLS, CONTRAST, feature...]
+        self.cls_token = AdditionalToken(
             hidden_dim=hidden_dim, 
         )
-        self.contrastive_token = AdditionalContrastiveToken(
+        self.contrastive_token = AdditionalToken(
             hidden_dim=hidden_dim, 
         ) if separate_contrast_token else None 
 
@@ -121,7 +124,7 @@ class TransTabModelCustom(nn.Module):
 
         # get CLS/Contrastive token
         final_cls_embedding = encoder_output[:, 0, :]
-        final_contrastive_embedding = encoder_output[:, -1, :] if self.contrastive_token is not None else None 
+        final_contrastive_embedding = encoder_output[:, 1, :] if self.contrastive_token is not None else None 
 
         return final_cls_embedding, final_contrastive_embedding 
     
@@ -223,8 +226,8 @@ class TransTabModelCustom(nn.Module):
             logger.info(f'Build a new classifier with num {num_class} classes outputs, need further finetune to work.') 
 
 
-class AdditionalCLSToken(nn.Module): 
-    """add a learnable [CLS] token embedding at the **first** of each sequence."""
+class AdditionalToken(nn.Module): 
+    """add a learnable [CLS/CONTRAST] token embedding at the **first** of each sequence."""
     def __init__(self, hidden_dim) -> None:
         super().__init__()
         self.weight = nn.Parameter(Tensor(hidden_dim))
@@ -239,30 +242,12 @@ class AdditionalCLSToken(nn.Module):
         embedding = torch.cat([self.expand(len(embedding), 1), embedding], dim=1) # add position: first
         outputs = {'embedding': embedding}
         if attention_mask is not None: 
-            attention_mask = torch.cat([torch.ones(attention_mask.shape[0],1).to(attention_mask.device), attention_mask])
+            attention_mask = torch.cat(
+                [torch.ones(attention_mask.shape[0], 1, device=attention_mask.device), attention_mask],
+                dim=1
+            )
         outputs['attention_mask'] = attention_mask
         return outputs 
-
-
-class AdditionalContrastiveToken(nn.Module):
-    """add a learnable contrastive token embedding at the **last** of each sequence."""
-    def __init__(self, hidden_dim) -> None:
-        super().__init__()
-        self.weight = nn.Parameter(Tensor(hidden_dim))
-        nn_init.uniform_(self.weight, a=-1/math.sqrt(hidden_dim), b=1/math.sqrt(hidden_dim))
-        self.hidden_dim = hidden_dim
-
-    def expand(self, *leading_dimensions):
-        new_dims = (1,) * (len(leading_dimensions)-1)
-        return self.weight.view(*new_dims, -1).expand(*leading_dimensions, -1)
-
-    def forward(self, embedding, attention_mask=None, **kwargs) -> Tensor:
-        embedding = torch.cat([embedding, self.expand(len(embedding), 1)], dim=1) # add position: last 
-        outputs = {'embedding': embedding}
-        if attention_mask is not None:
-            attention_mask = torch.cat([attention_mask, torch.ones(attention_mask.shape[0],1).to(attention_mask.device)], 1)
-        outputs['attention_mask'] = attention_mask
-        return outputs
 
 
 class TransTabForRadiomics(TransTabModelCustom):
@@ -349,11 +334,40 @@ class TransTabForRadiomics(TransTabModelCustom):
         self.to(device)
 
     def forward(self, 
-        x, 
+        x, # a batch of raw tabular samples. (pd.DataFrame)
     ): 
-        """generates **random** views, for training"""
+        """generates **random** views, for training
         
-        pass 
+        Returns: 
+            feat_x_multiview: the embeddings of the input tabular samples. (torch.Tensor)
+            logits: the classification logits. (torch.Tensor)
+        """
+        # Perform positive sampling with multiple radiomics subsets 
+        feat_x_list = []
+        feat_x_for_classification = None 
+        if isinstance(x, pd.DataFrame):
+            sub_x_list = self._build_sub_x_list_random(x, self.num_sub_cols)
+            for i, sub_x in enumerate(sub_x_list):
+                # encode each subset(view) feature sample into embedding
+                feat_x = self.input_encoder(sub_x) 
+                feat_x = self.contrastive_token(**feat_x) 
+                feat_x = self.cls_token(**feat_x) 
+                feat_x = self.encoder(**feat_x)
+                # [CLS, CONTRAST, feature...] 
+                if i == 0: 
+                    feat_x_for_classification = feat_x # full feature 사용 
+                    # feat_x_for_classification = feat_x[:, 0, :] # CLS 사용 
+                # use contrastive token (idx=1), project the embedding, for contrastive learning 
+                feat_x_proj = feat_x[:,1,:] 
+                feat_x_proj = self.projection_head(feat_x_proj)  
+                feat_x_list.append(feat_x_proj)
+        else:
+            raise ValueError(f'expect input x to be pd.DataFrame, get {type(x)} instead')
+
+        logits = self.classifier(feat_x_for_classification)
+        feat_x_multiview = torch.stack(feat_x_list, axis=1)  # (bs, num_partition, projection_dim) 
+
+        return feat_x_multiview, logits 
 
     def _build_sub_x_list_random(self, 
         x, 
@@ -366,6 +380,43 @@ class TransTabForRadiomics(TransTabModelCustom):
     ): 
         """utilizes **fixed** view, for inference&analysis"""
         pass 
+
+    # use parent's load method 
+    # def load(self, ckpt_dir): pass 
+
+    # override parent's save method 
+    def save(self, 
+        ckpt_dir,
+    ): 
+        """save the model state_dict and feature_extractor configuration to the `ckpt_dir`."""
+        # save model weight state dict 
+        if not os.path.exists(ckpt_dir): os.makedirs(ckpt_dir, exist_ok=True)
+        state_dict = self.state_dict() 
+        torch.save(state_dict, os.path.join(ckpt_dir, constants.WEIGHTS_NAME))
+        if self.input_encoder.feature_extractor is not None: 
+            self.input_encoder.feature_extractor.save(ckpt_dir)
+        # save model parameters 
+        model_params = {
+            'categorical_columns': self.input_encoder.feature_extractor.categorical_columns,
+            'numerical_columns': self.input_encoder.feature_extractor.numorical_columns, 
+            'binary_columns': self.input_encoder.feature_extractor.binary_columns, 
+            'num_class': self.num_class, 
+            'hidden_dim': self.encoder.hidden_dim, 
+            'num_layer': self.encoder.num_layer, 
+            'num_attention_head': self.encoder.num_attention_head, 
+            'hidden_dropout_prob': self.encoder.hidden_dropout_prob, 
+            'ffn_dim': self.encoder.ffn_dim, 
+            'projection_dim': self.projection_dim, 
+            'num_sub_cols': self.num_sub_cols, 
+            'gpe_drop_rate': self.gpe_drop_rate, 
+            'activation': self.activation, 
+        }
+        with open(os.path.join(ckpt_dir, constants.TRANSTAB_PARAMS_NAME), 'w') as f:
+            json.dump(model_params, f, indent=4)
+        # save the input encoder separately 
+        state_dict_input_encoder = self.input_encoder.state_dict()
+        torch.save(state_dict_input_encoder, os.path.join(ckpt_dir, constants.INPUT_ENCODER_NAME))
+        return None 
 
 
 
