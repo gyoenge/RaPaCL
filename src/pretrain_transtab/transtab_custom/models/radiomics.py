@@ -17,7 +17,7 @@ from torch.autograd import Function
 import torch.nn.init as nn_init 
 import torch.nn.functional as F 
 
-from src.pretrain_transtab.transtab_custom.modeling_transtab import (
+from src.pretrain_transtab.transtab_custom.models.base import (
     TransTabFeatureExtractor, 
     TransTabFeatureProcessor, 
     TransTabInputEncoder, 
