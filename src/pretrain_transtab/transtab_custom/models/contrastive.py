@@ -6,7 +6,7 @@ import pandas as pd
 import logging
 logger = logging.getLogger(__name__)
 
-from src.pretrain_transtab.transtab_custom.models.transtabmodel import TransTabModel    
+from src.pretrain_transtab.transtab_custom.models.base import TransTabModel    
 
 
 class TransTabForCL(TransTabModel):
