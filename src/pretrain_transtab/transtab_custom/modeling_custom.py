@@ -396,10 +396,26 @@ class TransTabForRadiomics(TransTabModelCustom):
         return sub_x_list 
         
     def forward_withSubX(self, 
-        sub_x_list, 
+        sub_x_list: List[pd.DataFrame], 
     ): 
-        """utilizes **fixed** view, for inference&analysis"""
-        pass 
+        """utilizes **fixed(no-shuffle)** view, for inference&analysis"""
+        feat_x_list = []
+        feat_x_for_cl = None
+        for i, sub_x in enumerate(sub_x_list):
+            # encode two subset feature samples 
+            feat_x = self.input_encoder(sub_x)
+            if self.contrastive_token is not None:
+                feat_x = self.contrastive_token(**feat_x)
+            feat_x = self.cls_token(**feat_x)
+            feat_x = self.encoder(**feat_x) # 
+            if i == 0:
+                feat_x_for_cl = feat_x
+            feat_x_proj = feat_x[:,1,:]  # take the contrastive token embedding 
+            feat_x_proj = self.projection_head(feat_x_proj) # bs, projection_dim 
+            feat_x_list.append(feat_x_proj)
+        logits = self.clf(feat_x_for_cl)
+        feat_x_multiview = torch.stack(feat_x_list, axis=1) # bs, num_partition, projection_dim 
+        return feat_x_multiview, logits
 
     # use parent's load method 
     # def load(self, ckpt_dir): pass 
