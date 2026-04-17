@@ -234,9 +234,12 @@ selected_results/*
 */selected_results/* 
 
 # generated configs 
-*/generated/
-*/generated/*
-*/img2rad-*.yaml
+src/*/generated/
+src/*/generated/*
+src/*/img2rad-*.yaml
+src/*/configs/generated/
+src/*/configs/generated/*
+!configs/generated/.gitkeep
 
 # generated transtab tokenizer folder
 transtab/tokenizer/
