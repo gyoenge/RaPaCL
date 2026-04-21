@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=str,
-        default="../configs/prepare_tabular.yaml",
+        required=True,
         help="Path to yaml config file",
     )
     return parser.parse_args()

@@ -7,7 +7,7 @@ cd RaPaCL/
 (i) prepare tabular custom data 
 - from H5 (HEST-style)
   ```bash
-  python -m src.radtranstab.prepare_tabular \
+  python -m src.radtranstab.pipelines.prepare_tabular \
     --config configs/data/prepare_tabular.yaml 
   ```
 
