@@ -46,7 +46,11 @@ def build_runtime_context() -> None:
     # prepare logger 
     output_root = ensure_dir(cfg["paths"]["output_root"])
     log_dir = ensure_dir(cfg["paths"].get("log_dir", output_root / "logs"))
-    timestamp, logger = setup_logger(log_dir, name=f"pretrain_transtab_rank{rank}")
+    timestamp, logger = setup_logger(
+        log_dir=log_dir,
+        name=f"pretrain_transtab_rank{rank}",
+        rank=rank,
+    )
 
     if is_main_process(rank):
         logger.info("Loaded config from: %s", args.config)
@@ -236,7 +240,10 @@ def run() -> None:
 
     # finetune classifier + evaluate on testset
     if settings["mode"] in {"all", "eval"}:
-        logger.info("Build classifier from pretrained checkpoint: %s", settings["args_build_classifier"]["checkpoint_dir"])
+        logger.info(
+            "Build classifier from pretrained checkpoint: %s",
+            settings["args_build_classifier"]["checkpoint"],
+        )
         logger.info("Building classifier with num_class=%d", settings["args_build_classifier"]["num_class"])
         classifier = build_classifier(
             **settings["args_build_classifier"]
