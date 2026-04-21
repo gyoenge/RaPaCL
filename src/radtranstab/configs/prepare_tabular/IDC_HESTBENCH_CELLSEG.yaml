@@ -1,0 +1,79 @@
+# ========================================
+# 기본 설정
+# ========================================
+seed: 42
+
+# ========================================
+# 경로 설정
+# ========================================
+paths:
+  radiomics_parquet_dir: /root/workspace/datasets/prepared_tabular/v0.2.0_withcellseg/IDC_HESTBENCH_parquets
+  output_dir: /root/workspace/datasets/prepared_tabular/v0.2.0_withcellseg/IDC_HESTBENCH
+  log_dir: /root/workspace/RaPaCL/src/radtranstab/outputs/IDC_HESTBENCH_CELLSEG/logs
+
+# ========================================
+# 데이터셋 설정
+# ========================================
+dataset:
+  meta_columns:
+    - patch_idx
+    - barcode
+    - color_path
+    - gray_path
+    - mask_path
+    - x
+    - y
+    - status
+
+  exclude_prefixes:
+    - diagnostics
+    - metadata
+
+  # 현재 코드 is_feature_column()이 startswith(prefix)로만 판별하므로
+  # 실제 컬럼 시작 문자열에 맞춰 적어야 함
+  radiomics_valid_prefixes:
+    # patch radiomics
+    - patch_original_
+
+    # cellseg radiomics
+    - cellseg_all_original_
+    - cellseg_inflammatory_original_
+    - cellseg_connective_original_
+    - cellseg_epithelial_original_
+    - cellseg_neoplastic_original_
+    - cellseg_dead_original_
+    - cellseg_class_-1_original_
+
+    # morphology summary features
+    - morph_
+    - morph_inflammatory_
+    - morph_connective_
+    - morph_epithelial_
+    - morph_neoplastic_
+    - morph_dead_
+    - morph_class_-1_
+
+    # distribution/count ratio features
+    - dist_
+
+    # simple scalar cellseg summary
+    - n_cells_total
+    - cellseg_mask_area
+
+  sample_label_map:
+    TENX99: 0
+    TENX95: 1
+    NCBI785: 2
+    NCBI783: 3
+
+  lowercase_columns: true
+  check_numeric: true
+  check_nan: true
+
+# ========================================
+# 런타임 설정
+# ========================================
+runtime:
+  encode_cat: false
+  test_load_single_data: true
+  

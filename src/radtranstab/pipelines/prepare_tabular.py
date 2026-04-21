@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=str,
-        required=True,
+        default="../configs/prepare_tabular.yaml",
         help="Path to yaml config file",
     )
     return parser.parse_args()
@@ -32,14 +32,18 @@ def is_feature_column(
     valid_prefixes: tuple[str, ...],
 ) -> bool:
     lowered = col.lower()
-    return any(lowered.startswith(prefix) for prefix in valid_prefixes)
 
-    # if lowered in meta_columns:
-    #     return False
-    # for prefix in exclude_prefixes:
-    #     if lowered.startswith(prefix):
-    #         return False
-    # return True
+    # 1. meta 제거
+    if lowered in meta_columns:
+        return False
+
+    # 2. exclude 먼저
+    for prefix in exclude_prefixes:
+        if lowered.startswith(prefix):
+            return False
+
+    # 3. include
+    return any(lowered.startswith(prefix) for prefix in valid_prefixes)
 
 
 def validate_feature_columns(
