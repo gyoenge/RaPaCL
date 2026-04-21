@@ -1,0 +1,86 @@
+paths:
+  parquet_dir: /root/workspace/datasets/prepared_tabular/v0.2.0_withcellseg/IDC_HESTBENCH_parquets
+  gene_list_json: /root/workspace/datasets/hest_data/eval/bench_data/IDC/var_250genes.json
+  bench_data_root: /root/workspace/datasets/hest_data/eval/bench_data/IDC
+  output_dir: /root/workspace/RaPaCL/src/radtranstab/outputs/IDC_HESTBENCH_CELLSEG/TRY2_CV_PRETRAIN_AND_GENEPRED
+
+data:
+  barcode_col: barcode
+  sample_id_col: sample_id
+  label_col: target_label
+  label_to_sample_id:
+    0: TENX99
+    1: TENX95
+    2: NCBI785
+    3: NCBI783
+
+  meta_columns:
+    - patch_idx
+    - barcode
+    - color_path
+    - gray_path
+    - mask_path
+    - x
+    - y
+    - status
+
+  exclude_prefixes:
+    - diagnostics
+    - metadata
+
+    - cellseg_inflammatory_
+    - cellseg_connective_
+    - cellseg_epithelial_
+    - cellseg_neoplastic_
+    - cellseg_dead_
+    - cellseg_class_-1_
+
+    - morph_inflammatory_
+    - morph_connective_
+    - morph_epithelial_
+    - morph_neoplastic_
+    - morph_dead_
+    - morph_class_-1_
+  
+  exclude_keywords:
+    - class_-1
+
+  radiomics_valid_prefixes:
+    - patch_original_
+    - cellseg_all_original_
+    - morph_
+    - dist_
+    - n_cells_total
+    - cellseg_mask_area
+
+train:
+  resume_pretrained: true
+  skip_pretrain_if_exists: true
+  start_fold: 0
+  end_fold: null
+
+  batch_size: 256
+  num_workers: 0 # 4
+  max_epochs: 50
+  patience: 8
+  lr: 1.0e-4
+  weight_decay: 1.0e-5
+
+model:
+  embedding_dim: 128
+  hidden_dim: 256
+  dropout: 0.1
+  num_partition: 3
+  overlap_ratio: 0.5
+  supervised: false
+
+cv:
+  use_one_label_for_val: true
+  val_label_shift: 1
+  random_seed: 42
+
+runtime:
+  device: cuda:0
+  normalize_gene: true
+
+# python -m src.radtranstab.pipelines.cv_pretrain_and_genepred --config src/radtranstab/configs/cv_pretrain_and_genepred/IDC_HESTBENCH_CELLSEG.yaml
