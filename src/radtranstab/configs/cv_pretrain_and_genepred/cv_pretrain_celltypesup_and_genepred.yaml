@@ -2,7 +2,7 @@ paths:
   parquet_dir: /root/workspace/datasets/prepared_tabular/v0.2.0_withcellseg/IDC_HESTBENCH_parquets
   gene_list_json: /root/workspace/datasets/hest_data/eval/bench_data/IDC/var_250genes.json
   bench_data_root: /root/workspace/datasets/hest_data/eval/bench_data/IDC
-  output_dir: /root/workspace/RaPaCL/src/radtranstab/outputs/IDC_HESTBENCH_CELLSEG/TRY3_CV_PRETRAIN_AND_GENEPRED_CLSEMB
+  output_dir: /root/workspace/RaPaCL/src/radtranstab/outputs/IDC_HESTBENCH_CELLSEG/TRY5_CV_PRETRAIN_CELLTYPESUP_AND_GENEPRED
 
 data:
   barcode_col: barcode
@@ -52,6 +52,11 @@ data:
     - dist_
     - n_cells_total
     - cellseg_mask_area
+  
+  aux_target_prefixes:
+    - dist_
+    - n_cells_total
+  aux_target_exact_cols: []
 
 train:
   resume_pretrained: true
@@ -65,6 +70,14 @@ train:
   patience: 8
   lr: 1.0e-4
   weight_decay: 1.0e-5
+
+  # pretrain_aux_loss_weight: 0.1
+  # pretrain_aux_warmup_epochs: 0
+  pretrain_aux_loss_weight: 0.05
+  pretrain_aux_warmup_epochs: 3
+  pretrain_temperature: 0.1
+  pretrain_aux_use_both_views: true
+  pretrain_checkpoint_name: pretrain_multitask_aux.pt
 
 model:
   embedding_dim: 128
@@ -83,4 +96,4 @@ runtime:
   device: cuda:0
   normalize_gene: true
 
-# python -m src.radtranstab.pipelines.cv_pretrain_and_genepred --config src/radtranstab/configs/cv_pretrain_and_genepred/IDC_HESTBENCH_CELLSEG.yaml
+# python -m src.radtranstab.pipelines.cv_pretrain_celltypesup_and_genepred --config src/radtranstab/configs/cv_pretrain_and_genepred/cv_pretrain_celltypesup_and_genepred.yaml
