@@ -6,7 +6,7 @@ from radtranstab.utils.config import load_yaml, parse_common_args, apply_cli_ove
 from radtranstab.utils.logging import setup_logger, setup_warnings
 from radtranstab.utils.misc import ensure_dir, save_yaml, seed_everything, unwrap_dataset
 from radtranstab.data.dataset import load_data
-from radtranstab.models.build_transtab import build_contrastive_learner, build_classifier, train
+from radtranstab.models.build import build_contrastive_learner, build_classifier, train
 from radtranstab.engine.evaluator import evaluate_classifier
 from .eval_representation import run_eval_detailed 
 from radtranstab.utils.distributed import setup_distributed, is_main_process, cleanup_distributed

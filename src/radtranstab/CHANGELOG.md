@@ -53,7 +53,7 @@ cd RaPaCL/
 
 - detailed evaluation of pretraining
   ```bash
-  python -m -m src.radtranstab.pipelines.pretrain \
+  python -m src.radtranstab.pipelines.pretrain \
     --config src/radtranstab/configs/idc_hestbench_withshape.yaml \
     --distributed false \
     --mode eval_detailed

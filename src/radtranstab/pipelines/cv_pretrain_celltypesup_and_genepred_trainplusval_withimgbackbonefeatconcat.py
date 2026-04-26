@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import models
 
 from hest.bench.st_dataset import H5PatchDataset, load_adata
-from radtranstab.models.build_transtab import build_contrastive_learner
+from radtranstab.models.build import build_contrastive_learner
 
 
 @dataclass

@@ -43,7 +43,7 @@ model:
   projection_dim: 128
   num_partition: 3
   overlap_ratio: 0.5
-  supervised: false ### 
+  supervised: true ### 
   ignore_duplicate_cols: true
 
 data:

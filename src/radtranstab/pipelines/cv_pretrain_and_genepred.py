@@ -18,7 +18,7 @@ import yaml
 from torch.utils.data import DataLoader, Dataset
 
 from hest.bench.st_dataset import H5PatchDataset, load_adata
-from radtranstab.models.build_transtab import build_contrastive_learner, train
+from radtranstab.models.build import build_contrastive_learner, train
 
 
 @dataclass
