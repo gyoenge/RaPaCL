@@ -2,10 +2,10 @@
 
 # Dataloader Settings 
 
-TRAIN_RADIOMCIS_FILE = "./datasets/train_radiomcis.json"
-VAL_RADIOMCIS_FILE = "./datasets/val_radiomcis.json"
-FEATURE_LIST_PATH = "./datasets/radiomics_features_list.json"
-ROOT_DIR = "./datasets/"
+TRAIN_RADIOMCIS_FILE = "/root/workspace/datasets/rapacl_data/radiomics_features/TENX99.parquet"
+VAL_RADIOMCIS_FILE = "/root/workspace/datasets/rapacl_data/radiomics_features/TENX95.parquet"
+FEATURE_LIST_PATH = "/root/workspace/datasets/rapacl_data/feature_list.txt"
+ROOT_DIR = "/root/workspace/datasets/rapacl_data/"
 
 LABEL_COL = "target_label"
 ID_COL = "barcode"

@@ -56,13 +56,14 @@ class HestRadiomicsDataset(Dataset):
             if pd.isna(feature_value):
                 feature_value = 0.0
 
-            if self.normalize:
-                feature_value = self._normalize_radiomics_feature(
-                    feature_name=feature_name,
-                    value=float(feature_value),
-                )
-            else:
-                feature_value = float(feature_value)
+            # if self.normalize:
+            #     feature_value = self._normalize_radiomics_feature(
+            #         feature_name=feature_name,
+            #         value=float(feature_value),
+            #     )
+            # else:
+            #     feature_value = float(feature_value)
+            feature_value = float(feature_value)
 
             radiomics_features.append(feature_value)
 
