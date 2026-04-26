@@ -232,6 +232,7 @@ selected_results/
 selected_results/*
 */selected_results/
 */selected_results/* 
+src/rapacl/output/
 
 # generated configs 
 src/*/generated/
