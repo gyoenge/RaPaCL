@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -143,6 +144,33 @@ def extract_projection_embeddings(model, loader, device):
     return embeddings, labels
 
 
+def extract_raw_radiomics_features(loader):
+    raw_list = []
+    label_list = []
+
+    for batch_idx, batch in enumerate(tqdm(loader, desc="Extracting raw radiomics features")):
+        x = batch["radiomics_features"]
+        y = batch["labels"]
+
+        if torch.is_tensor(x):
+            x = x.detach().cpu().numpy()
+        else:
+            x = np.asarray(x)
+
+        if torch.is_tensor(y):
+            y = y.detach().cpu().numpy()
+        else:
+            y = np.asarray(y)
+
+        raw_list.append(x)
+        label_list.append(y)
+
+    raw_features = np.concatenate(raw_list, axis=0)
+    labels = np.concatenate(label_list, axis=0)
+
+    return raw_features, labels
+
+
 def compute_clustering_metrics(embeddings, labels, num_classes):
     kmeans = KMeans(
         n_clusters=num_classes,
@@ -216,14 +244,15 @@ def save_json(data, path):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def run_projection_space_evaluation(
+def run_space_evaluation(
+    space_name,
     embeddings,
     labels,
     save_dir,
 ):
     save_dir = ensure_dir(save_dir)
 
-    print("===== Projection Space Evaluation =====")
+    print(f"===== {space_name} Evaluation =====")
     print(f"[INFO] embeddings shape: {embeddings.shape}")
     print(f"[INFO] labels shape: {labels.shape}")
 
@@ -235,10 +264,6 @@ def run_projection_space_evaluation(
     }
 
     save_json(collapse_info, save_dir / "collapse_check.json")
-
-    print("[INFO] collapse check:")
-    for k, v in collapse_info.items():
-        print(f"  {k}: {v}")
 
     num_classes = len(np.unique(labels))
 
@@ -259,27 +284,27 @@ def run_projection_space_evaluation(
         embeddings=embeddings,
         labels=labels,
         save_path=save_dir / "umap_labels.png",
-        title="UMAP of Projection Space",
+        title=f"UMAP of {space_name}",
     )
 
     save_umap_plot(
         embeddings=embeddings,
         labels=cluster_ids,
         save_path=save_dir / "umap_kmeans.png",
-        title="UMAP of Projection Space with KMeans",
+        title=f"UMAP of {space_name} with KMeans",
     )
 
     save_tsne_plot(
         embeddings=embeddings,
         labels=labels,
         save_path=save_dir / "tsne_labels.png",
-        title="t-SNE of Projection Space",
+        title=f"t-SNE of {space_name}",
     )
 
-    np.save(save_dir / "projection_embeddings.npy", embeddings)
+    np.save(save_dir / "embeddings.npy", embeddings)
     np.save(save_dir / "labels.npy", labels)
 
-    print(f"[INFO] evaluation artifacts saved to: {save_dir}")
+    print(f"[INFO] {space_name} artifacts saved to: {save_dir}")
 
 
 def main():
@@ -307,18 +332,32 @@ def main():
     dataset = build_eval_dataset()
     loader = build_eval_loader(dataset)
 
-    embeddings, labels = extract_projection_embeddings(
+    # 1) Projection space
+    projection_embeddings, projection_labels = extract_projection_embeddings(
         model=model_radiomics,
         loader=loader,
         device=device,
     )
 
-    save_dir = os.path.join(constants.OUTPUT_DIR, "projection_space_eval")
+    projection_save_dir = os.path.join(constants.OUTPUT_DIR, "projection_space_eval")
 
-    run_projection_space_evaluation(
-        embeddings=embeddings,
-        labels=labels,
-        save_dir=save_dir,
+    run_space_evaluation(
+        space_name="Projection Space",
+        embeddings=projection_embeddings,
+        labels=projection_labels,
+        save_dir=projection_save_dir,
+    )
+
+    # 2) Raw radiomics feature space
+    raw_embeddings, raw_labels = extract_raw_radiomics_features(loader)
+
+    raw_save_dir = os.path.join(constants.OUTPUT_DIR, "raw_feature_space_eval")
+
+    run_space_evaluation(
+        space_name="Raw Radiomics Feature Space",
+        embeddings=raw_embeddings,
+        labels=raw_labels,
+        save_dir=raw_save_dir,
     )
 
 
