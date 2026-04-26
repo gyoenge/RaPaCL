@@ -1,34 +1,12 @@
-from __future__ import annotations
+# Name of the files used for checkpointing
+TRAINING_ARGS_NAME = "training_args.json"
+TRAINER_STATE_NAME = "trainer_state.json"
+OPTIMIZER_NAME = "optimizer.pt"
+SCHEDULER_NAME = "scheduler.pt"
+WEIGHTS_NAME = "pytorch_model.bin"
+TOKENIZER_DIR = 'tokenizer'
+EXTRACTOR_STATE_DIR = 'extractor'
+EXTRACTOR_STATE_NAME = 'extractor.json'
+INPUT_ENCODER_NAME = 'input_encoder.bin'
+TRANSTAB_PARAMS_NAME = 'transtab_params.json'
 
-CATEGORICAL_COLUMNS: list[str] = None 
-NUMERICAL_COLUMNS: list[str] = None
-BINARY_COLUMNS: list[str] = None
-NUM_CLASSES: int = None
-
-# Column Partitioning 
-NUM_PARTITIONS: int = 3 
-OVERLAP_RATIO: float = 0.5
-
-# TransTab Encoder Architecture  
-HIDDEN_DIM: int = 128
-NUM_LAYERS: int = 2
-NUM_ATTENTION_HEADS: int = 8
-FFN_DIM: int = 256
-ACTIVATION: str = "relu"
-DROPOUT_PROB: float = 0.0
-
-# Classifier Architecture
-CLASSIFIER_FFN_DIM: int = 128
-
-# Training Hyperparameters
-NUM_EPOCHS: int = 50 
-BATCH_SIZE: int = 64
-LEARNING_RATE: float = 1e-4
-WEIGHT_DECAY: float = 0.0
-PATIENCE: int = 5
-WARMUP_RATIO: float = None
-WARMUP_STEPS: int = None
-
-# Evaluation Settings
-EVAL_BATCH_SIZE: int = 256
-EVAL_METRICS: str = "auc"
