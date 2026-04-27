@@ -91,6 +91,30 @@ class RadiomicsGenePredictor(nn.Module):
 
 
 # =========================================================
+# Raw Radiomics + GeneHead
+# =========================================================
+class RawRadiomicsGenePredictor(nn.Module):
+    def __init__(
+        self,
+        in_dim: int,
+        num_genes: int,
+        hidden_dim: int = 512,
+        dropout: float = 0.1,
+    ):
+        super().__init__()
+
+        self.gene_head = GeneHead(
+            in_dim=in_dim,
+            num_genes=num_genes,
+            hidden_dim=hidden_dim,
+            dropout=dropout,
+        )
+
+    def forward(self, radiomics_tensor):
+        return self.gene_head(radiomics_tensor)
+    
+
+# =========================================================
 # PCC
 # =========================================================
 def compute_pcc(pred, target, eps=1e-8):
@@ -171,7 +195,7 @@ def train_one_epoch(model, loader, optimizer, criterion, device):
 
     total_loss = 0.0
 
-    for batch in tqdm(loader, desc="Train"):
+    for batch in loader:
         radiomics = batch["radiomics"].to(device)
         gene = batch["gene"].to(device)
 
@@ -200,7 +224,7 @@ def evaluate(model, loader, criterion, device):
     all_targets = []
 
     with torch.no_grad():
-        for batch in tqdm(loader, desc="Eval"):
+        for batch in loader: 
             radiomics = batch["radiomics"].to(device)
             gene = batch["gene"].to(device)
 
@@ -239,72 +263,121 @@ def main():
     train_loader = build_loader(trainset, shuffle=True)
     val_loader = build_loader(valset, shuffle=False)
 
+    print(f"[INFO] train_loader: {len(train_loader)} batches, {len(trainset)} samples")
+    print(f"[INFO] val_loader: {len(val_loader)} batches, {len(valset)} samples")
+
     num_genes = len(trainset.genes)
 
-    # ------------------------------------
-    # Pretrained Radiomics Model
-    # ------------------------------------
+    print(f"[INFO] num_genes: {num_genes}")
+
+    criterion = nn.MSELoss()
+
+    genehead_dir = os.path.join(constants.CHECKPOINT_PATH, "genehead")
+    os.makedirs(genehead_dir, exist_ok=True)
+
+    experiments = {}
+
+    # =====================================================
+    # Experiment A: Pretrained TransTab Projection -> GeneHead
+    # =====================================================
     pretrained_model = build_pretrained_radiomics_model(device)
 
-    # ------------------------------------
-    # Gene Head Model
-    # ------------------------------------
-    gene_head = GeneHead(
+    projection_gene_head = GeneHead(
         in_dim=constants.PROJECTION_DIM,
         num_genes=num_genes,
         hidden_dim=512,
     ).to(device)
 
-    model = RadiomicsGenePredictor(
+    experiments["pretrained_projection"] = RadiomicsGenePredictor(
         radiomics_model=pretrained_model,
-        gene_head=gene_head,
+        gene_head=projection_gene_head,
         feature_cols=RADIOMICS_FEATURES_NAMES,
-        freeze_radiomics=True,   # first experiment
+        freeze_radiomics=True,
     ).to(device)
 
-    criterion = nn.MSELoss()
+    # =====================================================
+    # Experiment B: Raw Radiomics Feature -> GeneHead
+    # =====================================================
+    experiments["raw_feature"] = RawRadiomicsGenePredictor(
+        in_dim=len(RADIOMICS_FEATURES_NAMES),
+        num_genes=num_genes,
+        hidden_dim=512,
+        dropout=0.1,
+    ).to(device)
 
-    optimizer = torch.optim.AdamW(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=1e-3,
-        weight_decay=1e-4,
-    )
+    results = {}
 
-    # ------------------------------------
-    # Training
-    # ------------------------------------
-    best_pcc = -1.0
+    for exp_name, model in experiments.items():
+        print(f"\n========== Experiment: {exp_name} ==========")
 
-    for epoch in range(constants.EPOCHS):
-        train_loss = train_one_epoch(
-            model=model,
-            loader=train_loader,
-            optimizer=optimizer,
-            criterion=criterion,
-            device=device,
+        optimizer = torch.optim.AdamW(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=1e-3,
+            weight_decay=1e-4,
         )
 
-        val_loss, val_pcc = evaluate(
-            model=model,
-            loader=val_loader,
-            criterion=criterion,
-            device=device,
+        best_pcc = -1.0
+        best_record = None
+
+        pbar = tqdm(
+            # range(constants.EPOCHS),
+            range(20),  # for quick testing, change to constants.EPOCHS for full training
+            desc=f"{exp_name}",
+            leave=True,
         )
 
-        print(
-            f"[Epoch {epoch}] "
-            f"train_loss={train_loss:.4f} "
-            f"val_loss={val_loss:.4f} "
-            f"val_PCC={val_pcc:.4f}"
-        )
-
-        if val_pcc > best_pcc:
-            best_pcc = val_pcc
-            torch.save(
-                model.state_dict(),
-                os.path.join(constants.CHECKPOINT_PATH, "genehead", "best_genehead_model.pt"),
+        for epoch in pbar:
+            train_loss = train_one_epoch(
+                model=model,
+                loader=train_loader,
+                optimizer=optimizer,
+                criterion=criterion,
+                device=device,
             )
-            print("[INFO] saved best model")
+
+            val_loss, val_pcc = evaluate(
+                model=model,
+                loader=val_loader,
+                criterion=criterion,
+                device=device,
+            )
+
+            if val_pcc > best_pcc:
+                best_pcc = val_pcc
+                best_record = {
+                    "epoch": epoch,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "val_pcc": val_pcc,
+                }
+
+                save_path = os.path.join(
+                    genehead_dir,
+                    f"best_{exp_name}_genehead_model.pt",
+                )
+
+                torch.save(model.state_dict(), save_path)
+                print(f"[INFO] saved best model: {save_path}")
+            
+            print(
+                f"[INFO] {exp_name}: "
+                f"Epoch {epoch}: "
+                f"train_loss={train_loss:.4f}, "
+                f"val_loss={val_loss:.4f}, "
+                f"PCC={val_pcc:.4f}, "
+                f"best={best_pcc:.4f}"
+            )
+
+        results[exp_name] = best_record
+
+    print("\n========== Final Comparison ==========")
+    for exp_name, record in results.items():
+        print(
+            f"{exp_name}: "
+            f"best_epoch={record['epoch']}, "
+            f"val_loss={record['val_loss']:.4f}, "
+            f"val_PCC={record['val_pcc']:.4f}"
+        )
 
 
 if __name__ == "__main__":
