@@ -18,7 +18,8 @@ ID_COL = "barcode"
 # Model Settings
 # commented out is same as default in build_radiomics_learner, so we can directly use the default values without passing them as arguments
 
-CHECKPOINT_PATH = "./checkpoints/radiomics_retrieval/transtab"
+# CHECKPOINT_PATH = "./checkpoints/radiomics_retrieval/transtab"
+CHECKPOINT_PATH = "./checkpoints/scratch/transtab"
 OUTPUT_DIR = "./output"
 
 NUM_CLASS = 5

@@ -313,7 +313,7 @@ def main():
 
         optimizer = torch.optim.AdamW(
             filter(lambda p: p.requires_grad, model.parameters()),
-            lr=1e-3,
+            lr=1e-4,
             weight_decay=1e-4,
         )
 
@@ -322,7 +322,7 @@ def main():
 
         pbar = tqdm(
             # range(constants.EPOCHS),
-            range(20),  # for quick testing, change to constants.EPOCHS for full training
+            range(50),  # for quick testing, change to constants.EPOCHS for full training
             desc=f"{exp_name}",
             leave=True,
         )
