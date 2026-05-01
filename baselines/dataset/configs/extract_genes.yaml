@@ -1,0 +1,18 @@
+paths:
+  log_dir: logs/data
+  output_root: outputs/data
+
+  adata_dir: /root/workspace/datasets/hest_data/eval/bench_data/IDC/adata
+  gene_output_dir: /root/workspace/datasets/hest_data/eval/bench_data/IDC
+
+extract:
+  sample_files:
+    - TENX95.h5ad
+    - TENX99.h5ad
+    - NCBI783.h5ad
+    - NCBI785.h5ad
+
+  # k_values: [50, 100, 250, 500]
+  k_values: [50, 100, 250, 500]
+  criteria_values: [var, mean]
+  min_cells_pct: 0.1

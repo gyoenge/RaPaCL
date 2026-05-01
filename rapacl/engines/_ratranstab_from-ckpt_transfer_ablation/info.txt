@@ -1,0 +1,3 @@
+
+Radiomics model로만 gene prediction 해보는 ablation 실험
+

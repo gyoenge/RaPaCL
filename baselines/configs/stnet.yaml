@@ -1,0 +1,40 @@
+seed: 42
+default_outer_fold: 0
+
+paths:
+  bench_data_root: /root/workspace/datasets/hest_data/eval/bench_data/IDC
+  log_dir: logs/stnet
+  output_root: outputs/stnet
+
+  # 선택: 직접 split 파일을 지정하고 싶을 때만 사용
+  # train_split_csv: /root/workspace/hest_data/eval/bench_data/IDC/splits/train_0.csv
+  # test_split_csv: /root/workspace/hest_data/eval/bench_data/IDC/splits/test_0.csv
+
+  # 선택: 자동 규칙 대신 gene list 경로를 직접 지정하고 싶을 때
+  # gene_list_path: /root/workspace/hest_data/eval/bench_data/IDC/var_250genes.json
+
+model:
+  backbone: densenet121
+  num_genes: 250
+  genes_criteria: var
+  pretrained: true
+
+train:
+  batch_size: 32
+  max_epochs: 50
+  optimizer_name: sgd
+  lr: 1.0e-4 # 1.0e-6 
+  weight_decay: 1.0e-4 # 0.0
+  momentum: 0.9
+  # num_workers: 4 # --> RuntimeError: Caught RuntimeError in DataLoader worker process 0. --> torch_shm_manager: symbol lookup error: torch_shm_manager: undefined symbol: _ZN3c1016try_make_tempdirESt17basic_string_viewIcSt11char_traitsIcEE 
+  num_workers: 0
+
+cv:
+  outer_folds: [0, 1, 2, 3]
+  use_inner_selection: true
+
+runtime:
+  device: cuda
+
+  # eval 모드에서 특정 checkpoint를 읽고 싶으면 지정
+  checkpoint_path: outputs/stnet/run_20260405_172500/checkpoints/final_model.pth

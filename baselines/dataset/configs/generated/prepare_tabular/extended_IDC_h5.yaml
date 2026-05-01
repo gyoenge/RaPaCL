@@ -1,0 +1,62 @@
+seed: 42
+
+paths:
+  radiomics_parquet_dir: /root/workspace/datasets/hest_data/extended_IDC_h5/radiomics_normed_parquets
+  output_dir: /root/workspace/datasets/hest_data/extended_IDC_h5/radiomics_normed_tabular
+  log_dir: /root/workspace/datasets/hest_data/extended_IDC_h5/logs 
+
+dataset:
+  meta_columns:
+    - sample_id
+    - patch_idx
+    - patch_id
+    - barcode
+    - status
+    - color_path
+    - gray_path
+    - mask_path
+    - x
+    - y 
+
+  exclude_prefixes:
+    - diagnostics_
+
+  radiomics_valid_prefixes:
+    - original_
+    # - squareroot_
+    # - logarithm_
+    # - wavelet-
+    # - exponential_
+    # - square_
+    # - log-sigma-
+
+  sample_label_map:
+    # IDC 
+    NCBI783: 0
+    NCBI784: 1
+    NCBI785: 1
+    TENX95: 2
+    TENX97: 2
+    TENX98: 3
+    TENX99: 3
+    TENX191: 4
+    TENX192: 4
+    TENX193: 4
+    TENX195: 5
+    TENX196: 5
+    TENX197: 6
+    TENX198: 6
+    TENX199: 6
+    TENX200: 7
+    TENX201: 7
+    TENX202: 7 
+
+
+  lowercase_columns: true
+  check_numeric: true
+  check_nan: true
+
+runtime:
+  test_load_single_data: true
+  encode_cat: false
+

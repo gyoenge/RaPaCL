@@ -1,0 +1,62 @@
+seed: 42
+paths:
+  bench_data_root: /root/workspace/datasets/hest_data/eval/bench_data/IDC-0
+  checkpoint_dir: /root/workspace/RaPaCL/outputs/img2rad/checkpoints-original_-fold0
+  stnet_ckpt_dir: /root/workspace/archive/impl/stnet/checkpoints/run_20260327_052645
+  log_dir: /root/workspace/RaPaCL/outputs/img2rad/logs-original_-fold0
+model:
+  genes_criteria: var
+  num_genes: 250
+  backbone_name: densenet121
+  freeze_img2rad: false
+  radiomics_head_hidden_dims:
+  - 512
+  - 256
+  gene_head_hidden_dims:
+  - 512
+  - 256
+  dropout: 0.1
+  pretrained: true
+train:
+  batch_size: 256
+  max_epochs: 50
+  num_epochs_img2rad: 50
+  num_epochs_gene: 50
+  lr: 0.0001
+  weight_decay: 0.0001
+  optimizer_name: adamw
+  num_workers: 0
+  pin_memory: true
+runtime:
+  device: cuda:0
+  folds:
+  - 0
+  run_train: true
+  run_eval: true
+data:
+  normalize_gene_expression: true
+  radiomics_parquet_dir: /root/workspace/datasets/hest_data/eval/bench_data/IDC-0/radiomics_normpersample
+  radiomics_key_column: barcode
+  radiomics_apply_train_split_scaling: true
+  radiomics_ignore_columns:
+  - sample_id
+  - patch_idx
+  - patch_id
+  - barcode
+  - status
+  - color_path
+  - gray_path
+  - mask_path
+  radiomics_ignore_prefixes:
+  - diagnostics_
+  radiomics_logging:
+    enabled: true
+    log_ignored_by_name: false
+    log_ignored_by_prefix: false
+    log_non_numeric_columns: false
+    log_nan_skips: false
+    log_loaded_sample_summary: true
+    log_final_summary: true
+    max_logged_items: 10
+  radiomics_valid_prefixes:
+  - original_
