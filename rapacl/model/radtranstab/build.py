@@ -19,15 +19,15 @@ import os
 from rapacl.model.radtranstab._embed import TransTabFeatureExtractor
 from rapacl.model.radtranstab._transtab import TransTabClassifier
 from rapacl.model.radtranstab._radtranstab import TransTabForRadiomics
-import rapacl.model.radtranstab.constants as constants 
+import rapacl.configs.default.model_radtranstab as model_radtranstab 
 
 
 def build_extractor(
-    categorical_columns=constants.DEFAULT_CATEGORICAL_COLUMNS,
-    numerical_columns=constants.DEFAULT_NUMERICAL_COLUMNS,
-    binary_columns=constants.DEFAULT_BINARY_COLUMNS,
-    ignore_duplicate_cols=constants.IGNORE_DUPLICATE_COLS,
-    disable_tokenizer_parallel=constants.DISABLE_TOKENIZER_PARALLEL,
+    categorical_columns=model_radtranstab.DEFAULT_CATEGORICAL_COLUMNS,
+    numerical_columns=model_radtranstab.DEFAULT_NUMERICAL_COLUMNS,
+    binary_columns=model_radtranstab.DEFAULT_BINARY_COLUMNS,
+    ignore_duplicate_cols=model_radtranstab.IGNORE_DUPLICATE_COLS,
+    disable_tokenizer_parallel=model_radtranstab.DISABLE_TOKENIZER_PARALLEL,
     checkpoint=None,
     **kwargs,) -> TransTabFeatureExtractor:
     '''Build a feature extractor for TransTab model.
@@ -69,7 +69,7 @@ def build_extractor(
         ignore_duplicate_cols=ignore_duplicate_cols,
     )
     if checkpoint is not None:
-        extractor_path = os.path.join(checkpoint, constants.EXTRACTOR_STATE_DIR)
+        extractor_path = os.path.join(checkpoint, model_radtranstab.EXTRACTOR_STATE_DIR)
         if os.path.exists(extractor_path):
             feature_extractor.load(extractor_path)
         else:
@@ -77,18 +77,18 @@ def build_extractor(
     return feature_extractor
 
 def build_classifier(
-    categorical_columns=constants.DEFAULT_CATEGORICAL_COLUMNS,
-    numerical_columns=constants.DEFAULT_NUMERICAL_COLUMNS,
-    binary_columns=constants.DEFAULT_BINARY_COLUMNS,
-    feature_extractor=constants.CLASSIFIER_FEATURE_EXTRACTOR,
-    num_class=constants.CLASSIFIER_NUM_CLASS,
-    hidden_dim=constants.CLASSIFIER_HIDDEN_DIM,
-    num_layer=constants.CLASSIFIER_NUM_LAYER,
-    num_attention_head=constants.CLASSIFIER_NUM_ATTENTION_HEAD,
-    hidden_dropout_prob=constants.CLASSIFIER_HIDDEN_DROPOUT_PROB,
-    ffn_dim=constants.CLASSIFIER_FFN_DIM,
-    activation=constants.CLASSIFIER_ACTIVATION,
-    device=constants.CLASSIFIER_DEVICE,
+    categorical_columns=model_radtranstab.DEFAULT_CATEGORICAL_COLUMNS,
+    numerical_columns=model_radtranstab.DEFAULT_NUMERICAL_COLUMNS,
+    binary_columns=model_radtranstab.DEFAULT_BINARY_COLUMNS,
+    feature_extractor=model_radtranstab.CLASSIFIER_FEATURE_EXTRACTOR,
+    num_class=model_radtranstab.CLASSIFIER_NUM_CLASS,
+    hidden_dim=model_radtranstab.CLASSIFIER_HIDDEN_DIM,
+    num_layer=model_radtranstab.CLASSIFIER_NUM_LAYER,
+    num_attention_head=model_radtranstab.CLASSIFIER_NUM_ATTENTION_HEAD,
+    hidden_dropout_prob=model_radtranstab.CLASSIFIER_HIDDEN_DROPOUT_PROB,
+    ffn_dim=model_radtranstab.CLASSIFIER_FFN_DIM,
+    activation=model_radtranstab.CLASSIFIER_ACTIVATION,
+    device=model_radtranstab.CLASSIFIER_DEVICE,
     checkpoint=None,
     **kwargs) -> TransTabClassifier:
     '''Build a :class:`transtab.modeling_transtab.TransTabClassifier`.
@@ -161,21 +161,21 @@ def build_classifier(
     return model
 
 def build_radiomics_learner(
-    categorical_columns=constants.DEFAULT_CATEGORICAL_COLUMNS,
-    numerical_columns=constants.DEFAULT_NUMERICAL_COLUMNS,
-    binary_columns=constants.DEFAULT_BINARY_COLUMNS,
-    feature_extractor=constants.RADTRANSTAB_FEATURE_EXTRACTOR,
-    num_class=constants.RADTRANSTAB_NUM_CLASS,
-    hidden_dim=constants.RADTRANSTAB_HIDDEN_DIM,
-    num_layer=constants.RADTRANSTAB_NUM_LAYER,
-    num_attention_head=constants.RADTRANSTAB_NUM_ATTENTION_HEAD,
-    hidden_dropout_prob=constants.RADTRANSTAB_HIDDEN_DROPOUT_PROB,
-    ffn_dim=constants.RADTRANSTAB_FFN_DIM,
-    projection_dim=constants.RADTRANSTAB_PROJECTION_DIM,
-    num_sub_cols=constants.RADTRANSTAB_NUM_SUB_COLS,
-    gpe_drop_rate=constants.RADTRANSTAB_GPE_DROP_RATE,
-    activation=constants.RADTRANSTAB_ACTIVATION,
-    device=constants.RADTRANSTAB_DEVICE,
+    categorical_columns=model_radtranstab.DEFAULT_CATEGORICAL_COLUMNS,
+    numerical_columns=model_radtranstab.DEFAULT_NUMERICAL_COLUMNS,
+    binary_columns=model_radtranstab.DEFAULT_BINARY_COLUMNS,
+    feature_extractor=model_radtranstab.RADTRANSTAB_FEATURE_EXTRACTOR,
+    num_class=model_radtranstab.RADTRANSTAB_NUM_CLASS,
+    hidden_dim=model_radtranstab.RADTRANSTAB_HIDDEN_DIM,
+    num_layer=model_radtranstab.RADTRANSTAB_NUM_LAYER,
+    num_attention_head=model_radtranstab.RADTRANSTAB_NUM_ATTENTION_HEAD,
+    hidden_dropout_prob=model_radtranstab.RADTRANSTAB_HIDDEN_DROPOUT_PROB,
+    ffn_dim=model_radtranstab.RADTRANSTAB_FFN_DIM,
+    projection_dim=model_radtranstab.RADTRANSTAB_PROJECTION_DIM,
+    num_sub_cols=model_radtranstab.RADTRANSTAB_NUM_SUB_COLS,
+    gpe_drop_rate=model_radtranstab.RADTRANSTAB_GPE_DROP_RATE,
+    activation=model_radtranstab.RADTRANSTAB_ACTIVATION,
+    device=model_radtranstab.RADTRANSTAB_DEVICE,
     checkpoint=None,
     ignore_duplicate_cols=True,
     **kwargs,

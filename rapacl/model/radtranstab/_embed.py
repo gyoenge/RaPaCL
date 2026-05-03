@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from rapacl.configs.default.train import CHECKPOINT_PATH
-import rapacl.model.radtranstab.constants as constants
+import rapacl.configs.default.model_radtranstab as model_radtranstab
 
 
 class TransTabWordEmbedding(nn.Module):
@@ -194,12 +194,12 @@ class TransTabFeatureExtractor:
 
         # save tokenizer
         # tokenizer_path = os.path.join(save_path, constants.TOKENIZER_DIR)
-        tokenizer_path = os.path.join(CHECKPOINT_PATH, constants.TOKENIZER_DIR)
+        tokenizer_path = os.path.join(CHECKPOINT_PATH, model_radtranstab.TOKENIZER_DIR)
         self.tokenizer.save_pretrained(tokenizer_path)
 
         # save other configurations
         # coltype_path = os.path.join(save_path, constants.EXTRACTOR_STATE_NAME)
-        coltype_path = os.path.join(CHECKPOINT_PATH, constants.EXTRACTOR_STATE_NAME)
+        coltype_path = os.path.join(CHECKPOINT_PATH, model_radtranstab.EXTRACTOR_STATE_NAME)
         col_type_dict = {
             'categorical': self.categorical_columns,
             'binary': self.binary_columns,
@@ -211,8 +211,8 @@ class TransTabFeatureExtractor:
     def load(self, path):
         '''load the feature extractor configuration from local dir.
         '''
-        tokenizer_path = os.path.join(path, constants.TOKENIZER_DIR)
-        coltype_path = os.path.join(path, constants.EXTRACTOR_STATE_NAME)
+        tokenizer_path = os.path.join(path, model_radtranstab.TOKENIZER_DIR)
+        coltype_path = os.path.join(path, model_radtranstab.EXTRACTOR_STATE_NAME)
 
         self.tokenizer = BertTokenizerFast.from_pretrained(tokenizer_path)
         with open(coltype_path, 'r', encoding='utf-8') as f:

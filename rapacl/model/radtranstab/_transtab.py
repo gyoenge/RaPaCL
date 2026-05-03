@@ -9,7 +9,7 @@ from rapacl.model.radtranstab._embed import TransTabFeatureExtractor, TransTabFe
 from rapacl.model.radtranstab._encoder import TransTabEncoder, TransTabInputEncoder
 from rapacl.model.radtranstab._token import TransTabCLSToken
 from rapacl.model.radtranstab._head import TransTabLinearClassifier
-import rapacl.model.radtranstab.constants as constants
+import rapacl.configs.default.model_radtranstab as model_radtranstab
 
 
 class TransTabModel(nn.Module):
@@ -161,7 +161,7 @@ class TransTabModel(nn.Module):
 
         '''
         # load model weight state dict
-        model_name = os.path.join(ckpt_dir, constants.WEIGHTS_NAME)
+        model_name = os.path.join(ckpt_dir, model_radtranstab.WEIGHTS_NAME)
         state_dict = torch.load(model_name, map_location='cpu')
         missing_keys, unexpected_keys = self.load_state_dict(state_dict, strict=False)
         logger.info(f'missing keys: {missing_keys}')
@@ -169,7 +169,7 @@ class TransTabModel(nn.Module):
         logger.info(f'load model from {ckpt_dir}')
 
         # load feature extractor
-        self.input_encoder.feature_extractor.load(os.path.join(ckpt_dir, constants.EXTRACTOR_STATE_DIR))
+        self.input_encoder.feature_extractor.load(os.path.join(ckpt_dir, model_radtranstab.EXTRACTOR_STATE_DIR))
         self.binary_columns = self.input_encoder.feature_extractor.binary_columns
         self.categorical_columns = self.input_encoder.feature_extractor.categorical_columns
         self.numerical_columns = self.input_encoder.feature_extractor.numerical_columns
@@ -191,13 +191,13 @@ class TransTabModel(nn.Module):
         # Save model weights (state_dict)
         if not os.path.exists(ckpt_dir): os.makedirs(ckpt_dir, exist_ok=True)
         state_dict = self.state_dict()
-        torch.save(state_dict, os.path.join(ckpt_dir, constants.WEIGHTS_NAME))
+        torch.save(state_dict, os.path.join(ckpt_dir, model_radtranstab.WEIGHTS_NAME))
         if self.input_encoder.feature_extractor is not None:
             self.input_encoder.feature_extractor.save(ckpt_dir)
 
         # save the input encoder separately
         state_dict_input_encoder = self.input_encoder.state_dict()
-        torch.save(state_dict_input_encoder, os.path.join(ckpt_dir, constants.INPUT_ENCODER_NAME))
+        torch.save(state_dict_input_encoder, os.path.join(ckpt_dir, model_radtranstab.INPUT_ENCODER_NAME))
         return None
 
     def update(self, config):

@@ -6,7 +6,7 @@ from torch import nn
 from torch import Tensor
 import torch.nn.functional as F
 
-import rapacl.model.radtranstab.constants as constants
+import rapacl.configs.default.model_radtranstab as model_radtranstab
 
 
 def _get_activation_fn(activation):
@@ -164,10 +164,10 @@ class TransTabInputEncoder(nn.Module):
     
     def load(self, ckpt_dir):
         # load feature extractor
-        self.feature_extractor.load(os.path.join(ckpt_dir, constants.EXTRACTOR_STATE_DIR))
+        self.feature_extractor.load(os.path.join(ckpt_dir, model_radtranstab.EXTRACTOR_STATE_DIR))
 
         # load embedding layer
-        model_name = os.path.join(ckpt_dir, constants.INPUT_ENCODER_NAME)
+        model_name = os.path.join(ckpt_dir, model_radtranstab.INPUT_ENCODER_NAME)
         state_dict = torch.load(model_name, map_location='cpu')
         missing_keys, unexpected_keys = self.load_state_dict(state_dict, strict=False)
         logger.info(f'missing keys: {missing_keys}')
