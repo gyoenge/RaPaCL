@@ -13,21 +13,21 @@ from rapacl.engines.trainer_utils import (
     evaluate,
     save_checkpoint,
 )
-import rapacl.engines.constants as constants
+import rapacl.configs.default.train as train
 
 
 def build_model_radiomics(device):
     model_radiomics = build_radiomics_learner(
         checkpoint=None,
         numerical_columns=RADIOMICS_FEATURES_NAMES,
-        num_class=constants.NUM_CLASS,
+        num_class=train.NUM_CLASS,
         # hidden_dim=constants.HIDDEN_DIM,
         # num_layer=constants.NUM_LAYER,
-        hidden_dropout_prob=constants.DROPOUT,
-        projection_dim=constants.PROJECTION_DIM,
-        activation=constants.ACTIVATION,
+        hidden_dropout_prob=train.DROPOUT,
+        projection_dim=train.PROJECTION_DIM,
+        activation=train.ACTIVATION,
         # num_sub_cols=constants.NUM_SUB_COLS,
-        ape_drop_rate=constants.APE_DROP_RATE,
+        ape_drop_rate=train.APE_DROP_RATE,
         device=device,
     )
 
@@ -39,24 +39,24 @@ def build_model_radiomics(device):
 
 def build_dataloaders():
     train_dataset = HestRadiomicsDataset(
-        radiomics_file=constants.TRAIN_RADIOMCIS_FILE,
-        root_dir=constants.ROOT_DIR,
-        label_col=constants.LABEL_COL,
-        id_col=constants.ID_COL,
+        radiomics_file=train.TRAIN_RADIOMCIS_FILE,
+        root_dir=train.ROOT_DIR,
+        label_col=train.LABEL_COL,
+        id_col=train.ID_COL,
     )
 
     val_dataset = HestRadiomicsDataset(
-        radiomics_file=constants.VAL_RADIOMCIS_FILE,
-        root_dir=constants.ROOT_DIR,
-        label_col=constants.LABEL_COL,
-        id_col=constants.ID_COL,
+        radiomics_file=train.VAL_RADIOMCIS_FILE,
+        root_dir=train.ROOT_DIR,
+        label_col=train.LABEL_COL,
+        id_col=train.ID_COL,
     )
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=constants.BATCH_SIZE,
+        batch_size=train.BATCH_SIZE,
         shuffle=True,
-        num_workers=constants.NUM_WORKERS,
+        num_workers=train.NUM_WORKERS,
         pin_memory=True,
         collate_fn=radiomics_collate_fn,
         drop_last=False,
@@ -64,9 +64,9 @@ def build_dataloaders():
 
     val_loader = DataLoader(
         val_dataset,
-        batch_size=constants.BATCH_SIZE,
+        batch_size=train.BATCH_SIZE,
         shuffle=False,
-        num_workers=constants.NUM_WORKERS,
+        num_workers=train.NUM_WORKERS,
         pin_memory=True,
         collate_fn=radiomics_collate_fn,
         drop_last=False,
@@ -76,17 +76,17 @@ def build_dataloaders():
 
 
 def main():
-    set_seed(constants.SEED)
+    set_seed(train.SEED)
 
-    device = torch.device(constants.DEVICE)
-    os.makedirs(constants.OUTPUT_DIR, exist_ok=True)
+    device = torch.device(train.DEVICE)
+    os.makedirs(train.OUTPUT_DIR, exist_ok=True)
 
     model_radiomics = build_model_radiomics(device)
 
-    if constants.CHECKPOINT_PATH is not None:
+    if train.CHECKPOINT_PATH is not None:
         load_model_radiomics_from_full_checkpoint(
             model_radiomics=model_radiomics,
-            checkpoint_path=constants.CHECKPOINT_PATH,
+            checkpoint_path=train.CHECKPOINT_PATH,
             device=device,
             strict=False,
         )
@@ -95,12 +95,12 @@ def main():
 
     optimizer = torch.optim.AdamW(
         model_radiomics.parameters(),
-        lr=constants.LR,
-        weight_decay=constants.WEIGHT_DECAY,
+        lr=train.LR,
+        weight_decay=train.WEIGHT_DECAY,
     )
 
     criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
-    scaler = torch.amp.GradScaler() if constants.USE_AMP else None
+    scaler = torch.amp.GradScaler() if train.USE_AMP else None
 
     best_val_loss = float("inf")
     history = {
@@ -108,7 +108,7 @@ def main():
         "val": {},
     }
 
-    for epoch in range(constants.EPOCHS):
+    for epoch in range(train.EPOCHS):
         train_metrics = train_one_epoch(
             model_radiomics=model_radiomics,
             loader=train_loader,
@@ -142,18 +142,18 @@ def main():
             best_val_loss = val_metrics["loss"]
 
             save_path = save_checkpoint(
-                output_dir=constants.OUTPUT_DIR,
+                output_dir=train.OUTPUT_DIR,
                 model_radiomics=model_radiomics,
                 optimizer=optimizer,
                 epoch=epoch,
                 metrics=val_metrics,
-                args=vars(constants),
+                args=vars(train),
                 name="best_model_radiomics",
             )
 
             print(f"Saved best checkpoint: {save_path}")
 
-        metrics_path = os.path.join(constants.OUTPUT_DIR, "metrics.json")
+        metrics_path = os.path.join(train.OUTPUT_DIR, "metrics.json")
         with open(metrics_path, "w") as f:
             json.dump(history, f, indent=4)
 

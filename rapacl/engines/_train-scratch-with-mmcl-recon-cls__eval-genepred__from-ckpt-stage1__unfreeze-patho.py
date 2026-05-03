@@ -22,7 +22,7 @@ from rapacl.data._dataset import HestRadiomicsDataset
 from rapacl.data.constants_radfeatcols import RADIOMICS_FEATURES_NAMES
 from rapacl.model.radtranstab.build import build_radiomics_learner
 from rapacl.engines.trainer_utils import set_seed
-import rapacl.engines.constants as constants
+import rapacl.configs.default.train as train
 
 
 WARMUP_RECON_EPOCHS = 5
@@ -200,20 +200,20 @@ def accuracy(logits: torch.Tensor, target: torch.Tensor) -> float:
 # =========================================================
 def build_dataset(split_csv_path: str):
     return HestRadiomicsDataset(
-        bench_data_root=constants.ROOT_DIR,
+        bench_data_root=train.ROOT_DIR,
         split_csv_path=split_csv_path,
-        gene_list_path=constants.GENE_LIST_PATH,
-        feature_list_path=constants.FEATURE_LIST_PATH,
-        radiomics_dir=getattr(constants, "RADIOMICS_DIR", "radiomics_features"),
+        gene_list_path=train.GENE_LIST_PATH,
+        feature_list_path=train.FEATURE_LIST_PATH,
+        radiomics_dir=getattr(train, "RADIOMICS_DIR", "radiomics_features"),
     )
 
 
 def build_loader(dataset, shuffle: bool, drop_last: bool = False):
     return DataLoader(
         dataset,
-        batch_size=constants.BATCH_SIZE,
+        batch_size=train.BATCH_SIZE,
         shuffle=shuffle,
-        num_workers=constants.NUM_WORKERS,
+        num_workers=train.NUM_WORKERS,
         pin_memory=True,
         drop_last=drop_last,
     )
@@ -240,13 +240,13 @@ def build_scratch_radiomics_model(device: torch.device):
     return build_radiomics_learner(
         checkpoint=None,
         numerical_columns=RADIOMICS_FEATURES_NAMES,
-        num_class=getattr(constants, "NUM_CELLTYPE_CLASSES", 5),
-        hidden_dropout_prob=constants.DROPOUT,
-        projection_dim=constants.PROJECTION_DIM,
-        activation=constants.ACTIVATION,
-        ape_drop_rate=getattr(constants, "APE_DROP_RATE", 0.0),
+        num_class=getattr(train, "NUM_CELLTYPE_CLASSES", 5),
+        hidden_dropout_prob=train.DROPOUT,
+        projection_dim=train.PROJECTION_DIM,
+        activation=train.ACTIVATION,
+        ape_drop_rate=getattr(train, "APE_DROP_RATE", 0.0),
         device=device,
-        num_sub_cols=getattr(constants, "NUM_SUB_COLS", [72, 54, 36, 18, 9, 3, 1]),
+        num_sub_cols=getattr(train, "NUM_SUB_COLS", [72, 54, 36, 18, 9, 3, 1]),
     ).to(device)
 
 
@@ -254,37 +254,37 @@ def build_model(device: torch.device, num_genes: int, num_radiomics_features: in
     radiomics_model = build_scratch_radiomics_model(device)
 
     pathomics_encoder = DenseNet121PathomicsEncoder(
-        out_dim=getattr(constants, "PATHOMICS_DIM", 1024),
+        out_dim=getattr(train, "PATHOMICS_DIM", 1024),
         pretrained=True,
     ).to(device)
     freeze_module(pathomics_encoder)
 
     pathomics_proj = MLPHead(
-        in_dim=getattr(constants, "PATHOMICS_DIM", 1024),
-        out_dim=constants.PROJECTION_DIM,
-        hidden_dim=getattr(constants, "PATH_PROJ_HIDDEN_DIM", 512),
-        dropout=getattr(constants, "HEAD_DROPOUT", 0.1),
+        in_dim=getattr(train, "PATHOMICS_DIM", 1024),
+        out_dim=train.PROJECTION_DIM,
+        hidden_dim=getattr(train, "PATH_PROJ_HIDDEN_DIM", 512),
+        dropout=getattr(train, "HEAD_DROPOUT", 0.1),
     ).to(device)
 
     recon_head = MLPHead(
-        in_dim=constants.PROJECTION_DIM,
+        in_dim=train.PROJECTION_DIM,
         out_dim=num_radiomics_features,
-        hidden_dim=getattr(constants, "RECON_HIDDEN_DIM", 512),
-        dropout=getattr(constants, "HEAD_DROPOUT", 0.1),
+        hidden_dim=getattr(train, "RECON_HIDDEN_DIM", 512),
+        dropout=getattr(train, "HEAD_DROPOUT", 0.1),
     ).to(device)
 
     cls_head = MLPHead(
-        in_dim=getattr(constants, "HIDDEN_DIM", 128),
-        out_dim=getattr(constants, "NUM_CELLTYPE_CLASSES", 5),
-        hidden_dim=getattr(constants, "CLS_HIDDEN_DIM", 256),
-        dropout=getattr(constants, "HEAD_DROPOUT", 0.1),
+        in_dim=getattr(train, "HIDDEN_DIM", 128),
+        out_dim=getattr(train, "NUM_CELLTYPE_CLASSES", 5),
+        hidden_dim=getattr(train, "CLS_HIDDEN_DIM", 256),
+        dropout=getattr(train, "HEAD_DROPOUT", 0.1),
     ).to(device)
 
     gene_head = MLPHead(
-        in_dim=getattr(constants, "PATHOMICS_DIM", 1024) + constants.PROJECTION_DIM,
+        in_dim=getattr(train, "PATHOMICS_DIM", 1024) + train.PROJECTION_DIM,
         out_dim=num_genes,
-        hidden_dim=getattr(constants, "GENE_HIDDEN_DIM", 512),
-        dropout=getattr(constants, "HEAD_DROPOUT", 0.1),
+        hidden_dim=getattr(train, "GENE_HIDDEN_DIM", 512),
+        dropout=getattr(train, "HEAD_DROPOUT", 0.1),
     ).to(device)
 
     return MMCLReconClsModel(
@@ -312,7 +312,7 @@ def get_existing_stage1_checkpoint_path(save_dir: str) -> str | None:
       2. best full MMCL+Recon+Cls checkpoint
       3. best checkpoint from any Stage1 phase, including recon warmup
     """
-    explicit_path = getattr(constants, "STAGE1_CHECKPOINT_PATH", None)
+    explicit_path = getattr(train, "STAGE1_CHECKPOINT_PATH", None)
     if explicit_path is not None and os.path.exists(explicit_path):
         return explicit_path
 
@@ -338,7 +338,7 @@ def load_stage1_checkpoint_if_available(
       - LOAD_STAGE1_CHECKPOINT_IF_EXISTS: bool, default True
       - STAGE1_CHECKPOINT_PATH: optional explicit checkpoint path
     """
-    if not getattr(constants, "LOAD_STAGE1_CHECKPOINT_IF_EXISTS", True):
+    if not getattr(train, "LOAD_STAGE1_CHECKPOINT_IF_EXISTS", True):
         return False, None, None
 
     ckpt_path = get_existing_stage1_checkpoint_path(save_dir)
@@ -360,10 +360,10 @@ def train_pretrain_epoch(model, loader, optimizer, device, recon_only: bool = Fa
     model.train()
     model.pathomics_encoder.eval()
 
-    mmcl_w = getattr(constants, "MMCL_LAMBDA", MMCL_LAMBDA)
-    recon_w = getattr(constants, "RECON_LAMBDA", RECON_LAMBDA)
-    cls_w = getattr(constants, "CLS_LAMBDA", CLS_LAMBDA)
-    temperature = getattr(constants, "CONTRASTIVE_TEMPERATURE", 0.07)
+    mmcl_w = getattr(train, "MMCL_LAMBDA", MMCL_LAMBDA)
+    recon_w = getattr(train, "RECON_LAMBDA", RECON_LAMBDA)
+    cls_w = getattr(train, "CLS_LAMBDA", CLS_LAMBDA)
+    temperature = getattr(train, "CONTRASTIVE_TEMPERATURE", 0.07)
 
     meter = {"loss": 0.0, "mmcl": 0.0, "recon": 0.0, "cls": 0.0, "acc": 0.0}
     for batch in tqdm(loader, desc="stage1_train", leave=False):
@@ -406,11 +406,11 @@ def train_pretrain_epoch(model, loader, optimizer, device, recon_only: bool = Fa
 @torch.no_grad()
 def eval_pretrain_epoch(model, loader, device):
     model.eval()
-    temperature = getattr(constants, "CONTRASTIVE_TEMPERATURE", 0.07)
+    temperature = getattr(train, "CONTRASTIVE_TEMPERATURE", 0.07)
     meter = {"loss": 0.0, "mmcl": 0.0, "recon": 0.0, "cls": 0.0, "acc": 0.0}
-    mmcl_w = getattr(constants, "MMCL_LAMBDA", MMCL_LAMBDA)
-    recon_w = getattr(constants, "RECON_LAMBDA", RECON_LAMBDA)
-    cls_w = getattr(constants, "CLS_LAMBDA", CLS_LAMBDA)
+    mmcl_w = getattr(train, "MMCL_LAMBDA", MMCL_LAMBDA)
+    recon_w = getattr(train, "RECON_LAMBDA", RECON_LAMBDA)
+    cls_w = getattr(train, "CLS_LAMBDA", CLS_LAMBDA)
 
     for batch in tqdm(loader, desc="stage1_val", leave=False):
         image = get_batch_tensor(batch, ("image", "img", "patch"), device)
@@ -502,12 +502,12 @@ def eval_gene_epoch(model, loader, device):
 # Main
 # =========================================================
 def main():
-    set_seed(constants.SEED)
-    device = torch.device(constants.DEVICE)
+    set_seed(train.SEED)
+    device = torch.device(train.DEVICE)
     print(f"[INFO] device: {device}")
 
-    trainset = build_dataset(constants.TRAIN_SPLIT_CSV)
-    valset = build_dataset(constants.VAL_SPLIT_CSV)
+    trainset = build_dataset(train.TRAIN_SPLIT_CSV)
+    valset = build_dataset(train.VAL_SPLIT_CSV)
     train_loader = build_loader(trainset, shuffle=True, drop_last=False)
     val_loader = build_loader(valset, shuffle=False, drop_last=False)
 
@@ -521,7 +521,7 @@ def main():
 
     model = build_model(device, num_genes=num_genes, num_radiomics_features=num_radiomics_features)
 
-    save_dir = os.path.join(constants.CHECKPOINT_PATH, "scratch_mmcl_recon_cls__eval_genepred")
+    save_dir = os.path.join(train.CHECKPOINT_PATH, "scratch_mmcl_recon_cls__eval_genepred")
     os.makedirs(save_dir, exist_ok=True)
 
     # ---------- Stage 1 ----------
@@ -534,7 +534,7 @@ def main():
         device=device,
     )
 
-    skip_stage1_if_loaded = getattr(constants, "SKIP_STAGE1_IF_LOADED", True)
+    skip_stage1_if_loaded = getattr(train, "SKIP_STAGE1_IF_LOADED", True)
     run_stage1 = not (loaded_stage1 and skip_stage1_if_loaded)
 
     if loaded_stage1 and skip_stage1_if_loaded:
@@ -552,8 +552,8 @@ def main():
 
         optimizer_stage1 = torch.optim.AdamW(
             stage1_params,
-            lr=getattr(constants, "LR", 1e-4),
-            weight_decay=getattr(constants, "WEIGHT_DECAY", 1e-4),
+            lr=getattr(train, "LR", 1e-4),
+            weight_decay=getattr(train, "WEIGHT_DECAY", 1e-4),
         )
 
         best_stage1_val = float("inf")
@@ -573,8 +573,8 @@ def main():
                 print("[INFO] loaded Stage1 optimizer state for resume.")
             print(f"[INFO] resume Stage1 training from epoch {stage1_start_epoch}")
 
-        stage1_epochs = getattr(constants, "PRETRAIN_EPOCHS", getattr(constants, "EPOCHS", 50))
-        warmup_recon_epochs = getattr(constants, "WARMUP_RECON_EPOCHS", WARMUP_RECON_EPOCHS)
+        stage1_epochs = getattr(train, "PRETRAIN_EPOCHS", getattr(train, "EPOCHS", 50))
+        warmup_recon_epochs = getattr(train, "WARMUP_RECON_EPOCHS", WARMUP_RECON_EPOCHS)
         print(f"[INFO] Stage1 recon warmup epochs: {warmup_recon_epochs}")
 
         if stage1_start_epoch >= stage1_epochs:
@@ -659,16 +659,16 @@ def main():
     set_gene_eval_trainable(model)
     optimizer_stage2 = torch.optim.AdamW(
         [
-            {"params": model.gene_head.parameters(), "lr": getattr(constants, "GENE_LR", 1e-4)},
-            {"params": model.pathomics_proj.parameters(), "lr": getattr(constants, "PATH_PROJ_LR", 1e-4)},
-            {"params": model.pathomics_encoder.parameters(), "lr": getattr(constants, "PATH_ENCODER_LR", 1e-4)},
+            {"params": model.gene_head.parameters(), "lr": getattr(train, "GENE_LR", 1e-4)},
+            {"params": model.pathomics_proj.parameters(), "lr": getattr(train, "PATH_PROJ_LR", 1e-4)},
+            {"params": model.pathomics_encoder.parameters(), "lr": getattr(train, "PATH_ENCODER_LR", 1e-4)},
         ],
-        weight_decay=getattr(constants, "GENE_WEIGHT_DECAY", 1e-4),
+        weight_decay=getattr(train, "GENE_WEIGHT_DECAY", 1e-4),
     )
 
     best_pcc = -float("inf")
     best_record = None
-    stage2_epochs = getattr(constants, "GENE_EPOCHS", 50)
+    stage2_epochs = getattr(train, "GENE_EPOCHS", 50)
     for epoch in range(stage2_epochs):
         train_gene_m = train_gene_epoch(model, train_loader, optimizer_stage2, device)
         val_gene_m = eval_gene_epoch(model, val_loader, device)

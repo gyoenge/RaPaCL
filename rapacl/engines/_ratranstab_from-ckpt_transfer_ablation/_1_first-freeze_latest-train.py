@@ -13,7 +13,7 @@ from rapacl.data._dataset import HestRadiomicsDataset
 from rapacl.data.constants_radfeatcols import RADIOMICS_FEATURES_NAMES
 from rapacl.model.radtranstab.build import build_radiomics_learner
 from rapacl.engines.trainer_utils import set_seed
-import rapacl.engines.constants as CONSTANTS 
+import rapacl.configs.default.train as CONSTANTS 
 
 NUM_CELLTYPE_CLASS = 5 # 고정 
 NUM_SUB_COLS = [72, 54, 36, 18, 9, 3, 1] # 실험해볼거 ################################ 

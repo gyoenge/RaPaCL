@@ -12,7 +12,7 @@ import torch.nn.init as nn_init
 import numpy as np
 import pandas as pd
 
-from rapacl.engines.constants import CHECKPOINT_PATH
+from rapacl.configs.default.train import CHECKPOINT_PATH
 import rapacl.model.radtranstab.constants as constants
 
 

@@ -7,18 +7,18 @@ from rapacl.engines.trainer_utils import (
     set_seed,
     load_model_radiomics_from_full_checkpoint,
 )
-import rapacl.engines.constants as constants
+import rapacl.configs.default.train as train
 
 
 def build_model_radiomics(device):
     model_radiomics = build_radiomics_learner(
         checkpoint=None,
         numerical_columns=RADIOMICS_FEATURES_NAMES,
-        num_class=constants.NUM_CLASS,
-        hidden_dropout_prob=constants.DROPOUT,
-        projection_dim=constants.PROJECTION_DIM,
-        activation=constants.ACTIVATION,
-        ape_drop_rate=constants.APE_DROP_RATE,
+        num_class=train.NUM_CLASS,
+        hidden_dropout_prob=train.DROPOUT,
+        projection_dim=train.PROJECTION_DIM,
+        activation=train.ACTIVATION,
+        ape_drop_rate=train.APE_DROP_RATE,
         device=device,
     )
 
@@ -26,14 +26,14 @@ def build_model_radiomics(device):
 
 
 def main():
-    set_seed(constants.SEED)
+    set_seed(train.SEED)
 
-    device = torch.device(constants.DEVICE)
+    device = torch.device(train.DEVICE)
 
     print(f"[INFO] device: {device}")
-    print(f"[INFO] checkpoint path: {constants.CHECKPOINT_PATH}")
+    print(f"[INFO] checkpoint path: {train.CHECKPOINT_PATH}")
 
-    if constants.CHECKPOINT_PATH is None:
+    if train.CHECKPOINT_PATH is None:
         raise ValueError("constants.CHECKPOINT_PATH is None")
 
     model_radiomics = build_model_radiomics(device)
@@ -42,7 +42,7 @@ def main():
 
     load_model_radiomics_from_full_checkpoint(
         model_radiomics=model_radiomics,
-        checkpoint_path=constants.CHECKPOINT_PATH,
+        checkpoint_path=train.CHECKPOINT_PATH,
         device=device,
         strict=False,
     )

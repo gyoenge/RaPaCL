@@ -19,7 +19,7 @@ from rapacl.engines.trainer_utils import (
     load_model_radiomics_from_full_checkpoint,
 )
 
-import rapacl.engines.constants as constants
+import rapacl.configs.default.train as train
 
 
 # =========================================================
@@ -142,10 +142,10 @@ def compute_pcc(pred, target, eps=1e-8):
 # =========================================================
 def build_dataset(split_csv_path):
     dataset = HestRadiomicsDataset(
-        bench_data_root=constants.ROOT_DIR,
+        bench_data_root=train.ROOT_DIR,
         split_csv_path=split_csv_path,
-        gene_list_path=constants.GENE_LIST_PATH,
-        feature_list_path=constants.FEATURE_LIST_PATH,
+        gene_list_path=train.GENE_LIST_PATH,
+        feature_list_path=train.FEATURE_LIST_PATH,
         radiomics_dir="radiomics_features",
     )
     return dataset
@@ -154,9 +154,9 @@ def build_dataset(split_csv_path):
 def build_loader(dataset, shuffle):
     return DataLoader(
         dataset,
-        batch_size=constants.BATCH_SIZE,
+        batch_size=train.BATCH_SIZE,
         shuffle=shuffle,
-        num_workers=constants.NUM_WORKERS,
+        num_workers=train.NUM_WORKERS,
         pin_memory=True,
         drop_last=False,
     )
@@ -169,17 +169,17 @@ def build_pretrained_radiomics_model(device):
     model = build_radiomics_learner(
         checkpoint=None,
         numerical_columns=RADIOMICS_FEATURES_NAMES,
-        num_class=constants.NUM_CLASS,
-        hidden_dropout_prob=constants.DROPOUT,
-        projection_dim=constants.PROJECTION_DIM,
-        activation=constants.ACTIVATION,
-        ape_drop_rate=constants.APE_DROP_RATE,
+        num_class=train.NUM_CLASS,
+        hidden_dropout_prob=train.DROPOUT,
+        projection_dim=train.PROJECTION_DIM,
+        activation=train.ACTIVATION,
+        ape_drop_rate=train.APE_DROP_RATE,
         device=device,
     ).to(device)
 
     load_model_radiomics_from_full_checkpoint(
         model_radiomics=model,
-        checkpoint_path=constants.CHECKPOINT_PATH,
+        checkpoint_path=train.CHECKPOINT_PATH,
         device=device,
         strict=False,
     )
@@ -248,17 +248,17 @@ def evaluate(model, loader, criterion, device):
 # Main
 # =========================================================
 def main():
-    set_seed(constants.SEED)
+    set_seed(train.SEED)
 
-    device = torch.device(constants.DEVICE)
+    device = torch.device(train.DEVICE)
 
     print(f"[INFO] device: {device}")
 
     # ------------------------------------
     # Dataset
     # ------------------------------------
-    trainset = build_dataset(constants.TRAIN_SPLIT_CSV)
-    valset = build_dataset(constants.VAL_SPLIT_CSV)
+    trainset = build_dataset(train.TRAIN_SPLIT_CSV)
+    valset = build_dataset(train.VAL_SPLIT_CSV)
 
     train_loader = build_loader(trainset, shuffle=True)
     val_loader = build_loader(valset, shuffle=False)
@@ -272,7 +272,7 @@ def main():
 
     criterion = nn.MSELoss()
 
-    genehead_dir = os.path.join(constants.CHECKPOINT_PATH, "genehead")
+    genehead_dir = os.path.join(train.CHECKPOINT_PATH, "genehead")
     os.makedirs(genehead_dir, exist_ok=True)
 
     experiments = {}
@@ -283,7 +283,7 @@ def main():
     pretrained_model = build_pretrained_radiomics_model(device)
 
     projection_gene_head = GeneHead(
-        in_dim=constants.PROJECTION_DIM,
+        in_dim=train.PROJECTION_DIM,
         num_genes=num_genes,
         hidden_dim=512,
     ).to(device)

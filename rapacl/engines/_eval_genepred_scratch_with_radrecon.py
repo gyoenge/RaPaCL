@@ -15,7 +15,7 @@ from rapacl.data.constants_radfeatcols import RADIOMICS_FEATURES_NAMES
 from rapacl.model.radtranstab.build import build_radiomics_learner
 from rapacl.engines.trainer_utils import set_seed
 
-import rapacl.engines.constants as constants
+import rapacl.configs.default.train as train
 
 
 # =========================================================
@@ -152,10 +152,10 @@ def compute_pcc(pred: torch.Tensor, target: torch.Tensor, eps: float = 1e-8):
 # =========================================================
 def build_dataset(split_csv_path: str):
     return HestRadiomicsDataset(
-        bench_data_root=constants.ROOT_DIR,
+        bench_data_root=train.ROOT_DIR,
         split_csv_path=split_csv_path,
-        gene_list_path=constants.GENE_LIST_PATH,
-        feature_list_path=constants.FEATURE_LIST_PATH,
+        gene_list_path=train.GENE_LIST_PATH,
+        feature_list_path=train.FEATURE_LIST_PATH,
         radiomics_dir="radiomics_features",
     )
 
@@ -163,9 +163,9 @@ def build_dataset(split_csv_path: str):
 def build_loader(dataset, shuffle: bool):
     return DataLoader(
         dataset,
-        batch_size=constants.BATCH_SIZE,
+        batch_size=train.BATCH_SIZE,
         shuffle=shuffle,
-        num_workers=constants.NUM_WORKERS,
+        num_workers=train.NUM_WORKERS,
         pin_memory=True,
         drop_last=False,
     )
@@ -178,11 +178,11 @@ def build_scratch_radiomics_model(device: torch.device):
     model = build_radiomics_learner(
         checkpoint=None,
         numerical_columns=RADIOMICS_FEATURES_NAMES,
-        num_class=constants.NUM_CLASS,
-        hidden_dropout_prob=constants.DROPOUT,
-        projection_dim=constants.PROJECTION_DIM,
-        activation=constants.ACTIVATION,
-        ape_drop_rate=constants.APE_DROP_RATE,
+        num_class=train.NUM_CLASS,
+        hidden_dropout_prob=train.DROPOUT,
+        projection_dim=train.PROJECTION_DIM,
+        activation=train.ACTIVATION,
+        ape_drop_rate=train.APE_DROP_RATE,
         device=device,
         num_sub_cols=[72, 36, 24],
     )
@@ -324,13 +324,13 @@ def evaluate(
 # Main
 # =========================================================
 def main():
-    set_seed(constants.SEED)
+    set_seed(train.SEED)
 
-    device = torch.device(constants.DEVICE)
+    device = torch.device(train.DEVICE)
     print(f"[INFO] device: {device}")
 
-    trainset = build_dataset(constants.TRAIN_SPLIT_CSV)
-    valset = build_dataset(constants.VAL_SPLIT_CSV)
+    trainset = build_dataset(train.TRAIN_SPLIT_CSV)
+    valset = build_dataset(train.VAL_SPLIT_CSV)
 
     train_loader = build_loader(trainset, shuffle=True)
     val_loader = build_loader(valset, shuffle=False)
@@ -347,14 +347,14 @@ def main():
     radiomics_model = build_scratch_radiomics_model(device)
 
     gene_head = GeneHead(
-        in_dim=constants.PROJECTION_DIM,
+        in_dim=train.PROJECTION_DIM,
         num_genes=num_genes,
         hidden_dim=512,
         dropout=0.1,
     ).to(device)
 
     recon_head = RadiomicsReconstructionHead(
-        in_dim=constants.PROJECTION_DIM,
+        in_dim=train.PROJECTION_DIM,
         out_dim=num_radiomics_features,
         hidden_dim=512,
         dropout=0.1,
@@ -372,7 +372,7 @@ def main():
 
     # Auxiliary reconstruction loss weight.
     # Start small because the main target is gene prediction.
-    recon_lambda = getattr(constants, "RECON_LAMBDA", 0.1)
+    recon_lambda = getattr(train, "RECON_LAMBDA", 0.1)
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -380,7 +380,7 @@ def main():
         weight_decay=1e-4,
     )
 
-    save_dir = os.path.join(constants.CHECKPOINT_PATH, "scratch_radtranstab_gene_recon")
+    save_dir = os.path.join(train.CHECKPOINT_PATH, "scratch_radtranstab_gene_recon")
     os.makedirs(save_dir, exist_ok=True)
 
     best_pcc = -1.0

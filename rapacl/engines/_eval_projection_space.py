@@ -29,7 +29,7 @@ from rapacl.engines.trainer_utils import (
     set_seed,
     load_model_radiomics_from_full_checkpoint,
 )
-import rapacl.engines.constants as constants
+import rapacl.configs.default.train as train
 
 
 def ensure_dir(path):
@@ -42,11 +42,11 @@ def build_model_radiomics(device):
     model_radiomics = build_radiomics_learner(
         checkpoint=None,
         numerical_columns=RADIOMICS_FEATURES_NAMES,
-        num_class=constants.NUM_CLASS,
-        hidden_dropout_prob=constants.DROPOUT,
-        projection_dim=constants.PROJECTION_DIM,
-        activation=constants.ACTIVATION,
-        ape_drop_rate=constants.APE_DROP_RATE,
+        num_class=train.NUM_CLASS,
+        hidden_dropout_prob=train.DROPOUT,
+        projection_dim=train.PROJECTION_DIM,
+        activation=train.ACTIVATION,
+        ape_drop_rate=train.APE_DROP_RATE,
         device=device,
     )
     return model_radiomics.to(device)
@@ -54,10 +54,10 @@ def build_model_radiomics(device):
 
 def build_eval_dataset():
     dataset = HestRadiomicsDataset(
-        radiomics_file=constants.VAL_RADIOMCIS_FILE,
-        root_dir=constants.ROOT_DIR,
-        label_col=constants.LABEL_COL,
-        id_col=constants.ID_COL,
+        radiomics_file=train.VAL_RADIOMCIS_FILE,
+        root_dir=train.ROOT_DIR,
+        label_col=train.LABEL_COL,
+        id_col=train.ID_COL,
     )
     return dataset
 
@@ -65,9 +65,9 @@ def build_eval_dataset():
 def build_eval_loader(dataset):
     return DataLoader(
         dataset,
-        batch_size=constants.BATCH_SIZE,
+        batch_size=train.BATCH_SIZE,
         shuffle=False,
-        num_workers=constants.NUM_WORKERS,
+        num_workers=train.NUM_WORKERS,
         pin_memory=True,
         collate_fn=radiomics_collate_fn,
         drop_last=False,
@@ -174,7 +174,7 @@ def extract_raw_radiomics_features(loader):
 def compute_clustering_metrics(embeddings, labels, num_classes):
     kmeans = KMeans(
         n_clusters=num_classes,
-        random_state=constants.SEED,
+        random_state=train.SEED,
         n_init="auto",
     )
     cluster_ids = kmeans.fit_predict(embeddings)
@@ -189,7 +189,7 @@ def compute_clustering_metrics(embeddings, labels, num_classes):
 
 
 def save_umap_plot(embeddings, labels, save_path, title):
-    reducer = UMAP(n_components=2, random_state=constants.SEED)
+    reducer = UMAP(n_components=2, random_state=train.SEED)
     z = reducer.fit_transform(embeddings)
 
     plt.figure(figsize=(8, 6))
@@ -213,14 +213,14 @@ def save_tsne_plot(
     n = len(embeddings)
 
     if n > max_samples:
-        rng = np.random.default_rng(constants.SEED)
+        rng = np.random.default_rng(train.SEED)
         idx = rng.choice(n, size=max_samples, replace=False)
         embeddings = embeddings[idx]
         labels = labels[idx]
 
     reducer = TSNE(
         n_components=2,
-        random_state=constants.SEED,
+        random_state=train.SEED,
         init="pca",
         learning_rate="auto",
         perplexity=30,
@@ -308,14 +308,14 @@ def run_space_evaluation(
 
 
 def main():
-    set_seed(constants.SEED)
+    set_seed(train.SEED)
 
-    device = torch.device(constants.DEVICE)
+    device = torch.device(train.DEVICE)
 
     print(f"[INFO] device: {device}")
-    print(f"[INFO] checkpoint path: {constants.CHECKPOINT_PATH}")
+    print(f"[INFO] checkpoint path: {train.CHECKPOINT_PATH}")
 
-    if constants.CHECKPOINT_PATH is None:
+    if train.CHECKPOINT_PATH is None:
         raise ValueError("constants.CHECKPOINT_PATH is None")
 
     model_radiomics = build_model_radiomics(device)
@@ -323,7 +323,7 @@ def main():
 
     load_model_radiomics_from_full_checkpoint(
         model_radiomics=model_radiomics,
-        checkpoint_path=constants.CHECKPOINT_PATH,
+        checkpoint_path=train.CHECKPOINT_PATH,
         device=device,
         strict=False,
     )
@@ -339,7 +339,7 @@ def main():
         device=device,
     )
 
-    projection_save_dir = os.path.join(constants.OUTPUT_DIR, "projection_space_eval")
+    projection_save_dir = os.path.join(train.OUTPUT_DIR, "projection_space_eval")
 
     run_space_evaluation(
         space_name="Projection Space",
@@ -351,7 +351,7 @@ def main():
     # 2) Raw radiomics feature space
     raw_embeddings, raw_labels = extract_raw_radiomics_features(loader)
 
-    raw_save_dir = os.path.join(constants.OUTPUT_DIR, "raw_feature_space_eval")
+    raw_save_dir = os.path.join(train.OUTPUT_DIR, "raw_feature_space_eval")
 
     run_space_evaluation(
         space_name="Raw Radiomics Feature Space",
