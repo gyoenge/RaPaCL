@@ -80,6 +80,7 @@ class RadTransTabGenePredModel(nn.Module):
         super().__init__()
 
         self.radiomics_model = build_radiomics_model_from_ckpt(
+            device=device
         ).to(device) # use only backbone ? 
 
         self.recon_head = MLPHead(
