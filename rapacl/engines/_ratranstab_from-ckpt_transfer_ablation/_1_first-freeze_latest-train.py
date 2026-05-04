@@ -272,6 +272,54 @@ class RadTransTabGenePredModel(nn.Module):
         }
 
 
+def freeze_transferable_layers(model: nn.Module):
+    freeze_prefixes = (
+        "radiomics_model.input_encoder.feature_processor.word_embedding",
+        "radiomics_model.input_encoder.feature_processor.num_embedding",
+        "radiomics_model.input_encoder.feature_processor.align_layer",
+        "radiomics_model.encoder.transformer_encoder.0",
+    )
+
+    trainable_prefixes = (
+        "radiomics_model.encoder.transformer_encoder.1",
+        "radiomics_model.projection_head",
+        "radiomics_model.clf",
+        "radiomics_model.cls_token",
+        "radiomics_model.contrastive_token",
+        "recon_head",
+        "cls_head",
+        "gene_head",
+    )
+
+    for name, param in model.named_parameters():
+        if name.startswith(freeze_prefixes):
+            param.requires_grad = False
+        elif name.startswith(trainable_prefixes):
+            param.requires_grad = True
+        else:
+            param.requires_grad = True
+
+    print_trainable_parameters(model)
+
+
+def print_trainable_parameters(model: nn.Module):
+    trainable, total = 0, 0
+
+    print("\n[INFO] Trainable parameters:")
+    for name, param in model.named_parameters():
+        total += param.numel()
+        if param.requires_grad:
+            trainable += param.numel()
+            print(f"  [T] {name}")
+        else:
+            print(f"  [F] {name}")
+
+    print(
+        f"\n[INFO] trainable params: {trainable:,} / {total:,} "
+        f"({100 * trainable / total:.2f}%)"
+    )
+
+
 # ============================================================
 # Loss / Metric
 # ============================================================
@@ -555,6 +603,7 @@ def main():
 
     # rank별 checkpoint load print가 너무 많이 나오면 rank0만 출력하도록 build 함수를 더 분리해도 됨.
     model = RadTransTabGenePredModel(device=device, use_pandas_fallback=True).to(device)
+    freeze_transferable_layers(model)
 
     if is_distributed:
         model = DDP(
@@ -567,7 +616,7 @@ def main():
     # 기존 코드에서는 gene_head가 optimizer에 빠져 있었음.
     # gene_loss를 학습하려면 gene_head도 반드시 포함해야 한다.
     optimizer = torch.optim.AdamW(
-        model.parameters(),
+        [p for p in model.parameters() if p.requires_grad],
         lr=LR,
         weight_decay=WEIGHT_DECAY,
     )
