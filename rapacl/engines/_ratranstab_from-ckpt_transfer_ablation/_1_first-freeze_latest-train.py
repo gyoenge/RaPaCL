@@ -405,5 +405,8 @@ def main():
             )
 
 
+if __name__ == "__main__":
+    main()
+
 
 # 여기 LARS 추가해보기 
