@@ -211,7 +211,7 @@ def train_epoch(
     for batch in tqdm(loader, desc="Train", leave=False):
         radiomics = get_batch_tensor(batch, ("radiomics", "radiomics_features"), device)
         target_label = get_batch_tensor(batch, ("target_label", "label", "celltype_label"), device)
-        gene = get_batch_tensor(batch, ("gene", "expression", "expr"))
+        gene = get_batch_tensor(batch, ("gene", "expression", "expr"), device)
 
         out = model.forward(radiomics=radiomics)
 
@@ -237,22 +237,29 @@ def train_epoch(
 
 
 # Eval epoch 
-@torch.no_grad() 
+@torch.no_grad()
 def eval_epoch(
-    model, 
-    loader, 
-    device, 
-): 
+    model,
+    loader,
+    device,
+):
     model.eval()
 
-    temperature = 0.07 
-    
-    metrics = metrics = {"loss": 0.0, "loss-recon": 0.0, "loss-cls": 0.0, "loss-gene": 0.0}
+    metrics = {
+        "loss": 0.0,
+        "loss-recon": 0.0,
+        "loss-cls": 0.0,
+        "loss-gene": 0.0,
+        "cls-acc": 0.0,
+    }
+
+    preds = []
+    targets = []
 
     for batch in tqdm(loader, desc="Eval", leave=False):
         radiomics = get_batch_tensor(batch, ("radiomics", "radiomics_features"), device)
-        target_label = get_batch_tensor(batch, ("target_label", "label", "celltype_label"), device)
-        gene = get_batch_tensor(batch, ("gene", "expression", "expr"))
+        target_label = get_batch_tensor(batch, ("target_label", "label", "celltype_label"), device).long()
+        gene = get_batch_tensor(batch, ("gene", "expression", "expr"), device)
 
         out = model.forward(radiomics=radiomics)
 
@@ -260,18 +267,30 @@ def eval_epoch(
         cls_loss = F.cross_entropy(out["pred_class_logits"], target_label)
         gene_loss = F.mse_loss(out["pred_gene"], gene)
 
-        loss = 1 * recon_loss + 1 * cls_loss + 1 * gene_loss  # 나중에 Loss 별 weighting 추가하기 ###### 
+        loss = recon_loss + cls_loss + gene_loss
 
         bs = radiomics.size(0)
-        metrics["loss"] += loss.item() * bs 
-        metrics["loss-recon"] += recon_loss.item() * bs 
-        metrics["loss-cls"] += cls_loss.item() * bs 
-        metrics["loss-gene"] += gene_loss.item() * bs 
-        metrics["cls-acc"] += accuracy(out["pred_class_logits"].detach(), target_label) * bs 
+        metrics["loss"] += loss.item() * bs
+        metrics["loss-recon"] += recon_loss.item() * bs
+        metrics["loss-cls"] += cls_loss.item() * bs
+        metrics["loss-gene"] += gene_loss.item() * bs
+        metrics["cls-acc"] += accuracy(out["pred_class_logits"], target_label) * bs
+
+        preds.append(out["pred_gene"].detach().cpu())
+        targets.append(gene.detach().cpu())
 
     n = len(loader.dataset)
-    return {k: v/n for k,v in metrics.items()}
+    metrics = {k: v / n for k, v in metrics.items()}
 
+    pred_all = torch.cat(preds, dim=0)
+    target_all = torch.cat(targets, dim=0)
+
+    mean_pcc, pcc_per_gene = compute_genewise_pcc(pred_all, target_all)
+
+    metrics["mean_pcc"] = mean_pcc
+    metrics["pcc_per_gene"] = pcc_per_gene
+
+    return metrics
 
 # Main 
 def main():
@@ -356,9 +375,20 @@ def main():
         )
 
         print(
-            f"[INFO][Epoch {epoch}] "
-            f"train_loss={train_m['loss']:.4f} loss-recon={train_m['loss-recon']:.4f} loss-cls={train_m['loss-cls']:.4f} cls-acc={train_m['cls-acc']:.4f} loss-gene={train_m['loss-gene']:.4f} | "
-            f"val_loss={eval_m['loss']:.4f} loss-recon={eval_m['loss-recon']:.4f} loss-cls={eval_m['loss-cls']:.4f} cls-acc={train_m['cls-acc']:.4f} loss-gene={eval_m['loss-gene']:.4f}"
+            f"[INFO][Epoch {epoch}][Train Metrics] "
+            f"train_loss={train_m['loss']:.4f} "
+            f"loss-recon={train_m['loss-recon']:.4f} "
+            f"loss-cls={train_m['loss-cls']:.4f} "
+            f"cls-acc={train_m['cls-acc']:.4f} "
+            f"loss-gene={train_m['loss-gene']:.4f} "
+            f"\n"
+            f"[INFO][Epoch {epoch}][Eval Metraics] "
+            f"val_loss={eval_m['loss']:.4f} "
+            f"loss-recon={eval_m['loss-recon']:.4f} "
+            f"loss-cls={eval_m['loss-cls']:.4f} "
+            f"cls-acc={eval_m['cls-acc']:.4f} "
+            f"loss-gene={eval_m['loss-gene']:.4f} "
+            f"mean_pcc={eval_m['mean_pcc']:.4f}"
         )
 
         if eval_m["loss"] < best_val:
@@ -366,10 +396,10 @@ def main():
             torch.save(
                 {
                     "epoch": epoch,
-                    # "recon_only": recon_only,
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": train_optimizer.state_dict(),
                     "val_metrics": eval_m,
+                    "pcc_per_gene": eval_m["pcc_per_gene"],
                 },
                 best_path,
             )
