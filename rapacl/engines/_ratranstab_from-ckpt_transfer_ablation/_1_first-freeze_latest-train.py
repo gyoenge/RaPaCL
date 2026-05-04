@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os 
 from typing import Any 
 import numpy as np 
 import pandas as pd 
@@ -317,15 +318,61 @@ def main():
 
     model = RadTransTabGenePredModel(device)
 
-    save_dif = os.path.join
+    save_dir = os.path.join(CONSTANTS.CHECKPOINT_PATH, "1_first_freeze_latest_train")
+    os.makedirs(save_dir, exist_ok=True)
 
-    # train 
+    # train & eval loop
+    num_full_epochs = 20  # CONSTANTS.EPOCHS | CONSTANTS.PRETRAIN_EPOCHS
+    # num_warmup_epochs = 5  # CONSTANTS.WARMUP_RECON_EPOCHS
 
+    best_path = os.path.join(save_dir, "best.pt")
+    best_val = float("inf")
 
-    # eval 
+    train_params = (
+        list(model.radiomics_model.parameters())
+        + list(model.recon_head.parameters())
+        + list(model.cls_head.parameters())
+    )
+    train_optimizer = torch.optim.AdamW(
+        train_params, 
+        lr=1e-4,  # CONSTANTS.LR 
+        weight_decay=1e-4,  # CONSTANTS.WEIGHT_DECAY 
+    )
 
+    for epoch in range(1,num_full_epochs+1):
+        # recon_only = epoch < num_warmup_epochs 
 
+        train_m = train_epoch(
+            model=model, 
+            loader=train_loader,
+            optimizer=train_optimizer,
+            device=device,
+        )
 
+        eval_m = eval_epoch(
+            model=model, 
+            loader=eval_loader, 
+            device=device, 
+        )
+
+        print(
+            f"[INFO][Epoch {epoch}] "
+            f"train_loss={train_m['loss']:.4f} loss-recon={train_m['loss-recon']:.4f} loss-cls={train_m['loss-cls']:.4f} cls-acc={train_m['cls-acc']:.4f} loss-gene={train_m['loss-gene']:.4f} | "
+            f"val_loss={eval_m['loss']:.4f} loss-recon={eval_m['loss-recon']:.4f} loss-cls={eval_m['loss-cls']:.4f} cls-acc={train_m['cls-acc']:.4f} loss-gene={eval_m['loss-gene']:.4f}"
+        )
+
+        if eval_m["loss"] < best_val:
+            best_val = eval_m["loss"]
+            torch.save(
+                {
+                    "epoch": epoch,
+                    # "recon_only": recon_only,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": train_optimizer.state_dict(),
+                    "val_metrics": eval_m,
+                },
+                best_path,
+            )
 
 
 
