@@ -40,7 +40,7 @@ def build_radiomics_model_from_ckpt(device: torch.device):
     ).to(device)
 
     # load ckpt except clf 
-    ckpt_path = "/root/workspace/RaPaCL/src/rapacl/checkpoints/radiomics_retrieval/transtab/pytorch_model.bin"
+    ckpt_path = "/root/workspace/RaPaCL/rapacl/checkpoints/radiomics_retrieval/transtab/pytorch_model.bin"
     if ckpt_path is not None: 
         print(f"[INFO] Load RadTransTab checkpoint: {ckpt_path}")
     state_dict = torch.load(ckpt_path, map_location=device)
@@ -84,7 +84,7 @@ class RadTransTabGenePredModel(nn.Module):
         ).to(device) # use only backbone ? 
 
         self.recon_head = MLPHead(
-            in_dim=PROJECTION_DIM,
+            in_dim=128, # radtranstab hidden dim  # PROJECTION_DIM,
             out_dim=NUM_RADIOMICS,
             hidden_dim=512, 
             dropout=0.1,
@@ -211,7 +211,11 @@ def train_epoch(
     metrics = {"loss": 0.0, "loss-recon": 0.0, "loss-cls": 0.0, "loss-gene": 0.0, "cls-acc": 0.0,}
     for batch in tqdm(loader, desc="Train", leave=False):
         radiomics = get_batch_tensor(batch, ("radiomics", "radiomics_features"), device)
-        target_label = get_batch_tensor(batch, ("target_label", "label", "celltype_label"), device)
+        target_label = get_batch_tensor(
+            batch,
+            ("target_label", "label", "celltype_label"),
+            device
+        ).long()
         gene = get_batch_tensor(batch, ("gene", "expression", "expr"), device)
 
         out = model.forward(radiomics=radiomics)
@@ -340,6 +344,7 @@ def main():
 
     save_dir = os.path.join(CONSTANTS.CHECKPOINT_PATH, "1_first_freeze_latest_train")
     os.makedirs(save_dir, exist_ok=True)
+    print(f"[INFO] trained ckpt save directory: {save_dir}")
 
     # train & eval loop
     num_full_epochs = 20  # CONSTANTS.EPOCHS | CONSTANTS.PRETRAIN_EPOCHS
