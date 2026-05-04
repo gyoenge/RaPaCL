@@ -38,7 +38,7 @@ CKPT_PATH = "/root/workspace/RaPaCL/rapacl/checkpoints/radiomics_retrieval/trans
 SAVE_DIR = "/root/workspace/RaPaCL/rapacl/checkpoints/ratranstab_from-ckpt_transfer_ablation/1_first_freeze_latest_train_ddp_amp"
 
 # Training options
-NUM_EPOCHS = 20
+NUM_EPOCHS = 20 # 100
 LR = 1e-4
 WEIGHT_DECAY = 1e-4
 GRAD_ACCUM_STEPS = 1
@@ -248,7 +248,7 @@ class RadTransTabGenePredModel(nn.Module):
 
         # 기존 코드 기준: cls=0, contrastive=1
         rad_cls_h = enc[:, 0, :]
-        rad_contrast_h = enc[:, 1, :]
+        rad_contrast_h = enc[:, -1, :]
         rad_contrast_z = self.radiomics_model.projection_head(rad_contrast_h)
 
         return {
@@ -603,7 +603,7 @@ def main():
 
     # rank별 checkpoint load print가 너무 많이 나오면 rank0만 출력하도록 build 함수를 더 분리해도 됨.
     model = RadTransTabGenePredModel(device=device, use_pandas_fallback=True).to(device)
-    freeze_transferable_layers(model)
+    # freeze_transferable_layers(model)
 
     if is_distributed:
         model = DDP(
