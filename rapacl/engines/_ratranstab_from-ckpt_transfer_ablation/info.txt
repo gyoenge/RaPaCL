@@ -1,3 +1,5 @@
 
 Radiomics model로만 gene prediction 해보는 ablation 실험
 
+torchrun --nproc_per_node=2 \
+  rapacl/engines/_ratranstab_from-ckpt_transfer_ablation/_1_first-freeze_latest-train.py

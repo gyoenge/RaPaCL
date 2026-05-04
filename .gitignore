@@ -255,3 +255,4 @@ src/pretrain_transtab/transtab_custom/test.ipynb
 src/radtranstab/checkpoints/
 src/rapacl/checkpoints/
 */checkpoints/
+checkpoints/
