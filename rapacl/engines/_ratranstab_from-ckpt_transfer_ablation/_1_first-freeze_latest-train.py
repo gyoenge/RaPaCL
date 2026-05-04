@@ -342,7 +342,7 @@ def main():
 
     model = RadTransTabGenePredModel(device)
 
-    save_dir = os.path.join(CONSTANTS.CHECKPOINT_PATH, "1_first_freeze_latest_train")
+    save_dir = os.path.join("/root/workspace/RaPaCL/rapacl/checkpoints/ratranstab_from-ckpt_transfer_ablation/1_first_freeze_latest_train")
     os.makedirs(save_dir, exist_ok=True)
     print(f"[INFO] trained ckpt save directory: {save_dir}")
 
