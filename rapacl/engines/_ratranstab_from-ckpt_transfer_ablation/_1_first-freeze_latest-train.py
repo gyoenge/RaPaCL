@@ -38,7 +38,7 @@ CKPT_PATH = "/root/workspace/RaPaCL/rapacl/checkpoints/radiomics_retrieval/trans
 SAVE_DIR = "/root/workspace/RaPaCL/rapacl/checkpoints/ratranstab_from-ckpt_transfer_ablation/1_first_freeze_latest_train_ddp_amp"
 
 # Training options
-NUM_EPOCHS = 20 # 100
+NUM_EPOCHS = 50 # 20 | 100
 LR = 1e-4
 WEIGHT_DECAY = 1e-4
 GRAD_ACCUM_STEPS = 1
@@ -47,9 +47,9 @@ AMP_DTYPE = torch.float16  # L40S에서는 bf16도 가능하면 torch.bfloat16 �
 CLIP_GRAD_NORM = 1.0
 
 # Loss weights
-W_RECON = 1.0
-W_CLS = 1.0
-W_GENE = 1.0
+W_RECON = 1.0  # 50 ~ 200 | 10 ~ 50
+W_CLS = 1.0  # | 0.5 ~ 1
+W_GENE = 1.0  # 0.5 | 1.5 ~ 3
 
 # DataLoader tuning
 DEFAULT_NUM_WORKERS = 0
@@ -188,6 +188,15 @@ class MLPHead(nn.Module):
         return self.net(x)
 
 
+# class SingleFCHead(nn.Module):
+#     def __init__(self, in_dim: int, out_dim: int):
+#         super().__init__()
+#         self.fc = nn.Linear(in_dim, out_dim)
+
+#     def forward(self, x):
+#         return self.fc(x)
+    
+
 class RadTransTabGenePredModel(nn.Module):
     def __init__(self, device: torch.device, use_pandas_fallback: bool = True):
         super().__init__()
@@ -202,6 +211,10 @@ class RadTransTabGenePredModel(nn.Module):
             hidden_dim=512,
             dropout=0.1,
         )
+        # self.recon_head = SingleFCHead(
+        #     in_dim=128,
+        #     out_dim=NUM_RADIOMICS,
+        # )
         self.cls_head = MLPHead(
             in_dim=128,
             out_dim=NUM_CELLTYPE_CLASS,
@@ -373,6 +386,12 @@ def compute_losses(out: dict[str, torch.Tensor], radiomics: torch.Tensor, target
     gene_loss = F.mse_loss(out["pred_gene"], gene)
     loss = W_RECON * recon_loss + W_CLS * cls_loss + W_GENE * gene_loss
     return loss, recon_loss, cls_loss, gene_loss
+    
+    # recon_loss = F.mse_loss(out["pred_radiomics"], radiomics)
+    # # cls_loss = F.cross_entropy(out["pred_class_logits"], target_label)
+    # gene_loss = F.mse_loss(out["pred_gene"], gene)
+    # loss = recon_loss + gene_loss  
+    # return loss, recon_loss, torch.tensor(0.0), gene_loss
 
 
 # ============================================================
