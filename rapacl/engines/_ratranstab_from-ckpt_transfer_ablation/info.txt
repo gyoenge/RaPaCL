@@ -9,4 +9,42 @@ torchrun --nproc_per_node=2 \
 
 -- _1_를 베이스로 _2_ 작성됨. 즉 나중엔 _2_를 주석으로 남기게 리팩토링하기 
 
+torchrun --nproc_per_node=2 \
+  rapacl/engines/_ratranstab_from-ckpt_transfer_ablation/_3_first-verticalcl-then-train.py
+
+-- 
+Stage 0: RadTransTab Unsupervised Vertical CL (NEW)
+Stage 2: gene prediction (현재 코드)
+
+Stage 0
+loss: vertical CL only
+epoch: 50~100
+lr: 1e-4
+
+Stage 2 (현재 코드)
+일단 no freezing layers. # freeze 일부 layer 시도 가능? 
+gene + recon + cls
+---
+
+1. 왜 이걸 먼저 해야 하냐
+지금 구조 문제:
+radiomics encoder = pretrained but not domain-specific
+바로 gene regression → supervision weak
+: 그래서 representation이 불안정함
+
+2. Vertical CL의 역할
+: feature 간 관계 학습
+redundancy 제거
+invariant representation 학습
+noise robust
+
+3. 지금 상황에서 특히 중요한 이유
+radiomics dim 적음 (~72)
+정보량 약함
+: 그래서 contrastive 없이 바로 regression 하면 망가짐
+
+지금 모델이 unstable한 이유 = representation collapse
+해결법 = "TransTab 자체를 먼저 vertical CL로 pretrain"
+
+---
 
